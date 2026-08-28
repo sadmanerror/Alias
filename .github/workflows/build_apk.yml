@@ -38,7 +38,7 @@ jobs:
       - name: Build Android Release APK
         env:
           GRADLE_OPTS: "-Dandroid.newDsl=false -Dandroid.builtInKotlin=false"
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
 
       - name: Prepare APK output
         run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Alias.apk
