@@ -26,15 +26,19 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Configure Flutter SDK Path
+      - name: Configure Flutter SDK Path and Gradle Flags
         run: |
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-          cat android/local.properties
+          echo "android.newDsl=false" >> android/gradle.properties
+          echo "android.builtInKotlin=false" >> android/gradle.properties
+          cat android/gradle.properties
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build Android Release APK
+        env:
+          GRADLE_OPTS: "-Dandroid.newDsl=false -Dandroid.builtInKotlin=false"
         run: flutter build apk --release --no-tree-shake-icons
 
       - name: Prepare APK output
