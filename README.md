@@ -12,7 +12,14 @@
   <a href="https://github.com/sadmanerror/Alias/releases/latest/download/Alias-arm64-v8a.apk">
     <img src="https://img.shields.io/badge/📥_Download_Android_APK_(~30MB)-v1.0.0-2ea44f?style=for-the-badge&logo=android&logoColor=white" height="42" alt="Download APK" />
   </a>
+  <a href="MASTER_GUIDE.md">
+    <img src="https://img.shields.io/badge/📘_Read_Master_Architecture_Guide-1f2328?style=for-the-badge&logo=gitbook&logoColor=white" height="42" alt="Master Guide" />
+  </a>
 </p>
+
+---
+
+> 📖 **New to this project or Flutter development?** Read the complete **[Master Architecture & Engineering Guide (MASTER_GUIDE.md)](MASTER_GUIDE.md)** to learn how every single feature, tool, backend pipeline, and bug fix was built from the ground up!
 
 ---
 
