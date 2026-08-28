@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "679075084081",
+    "project_id": "alias-messaging-app",
+    "storage_bucket": "alias-messaging-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:679075084081:android:412acacb5e698f16c9e210",
+        "android_client_info": {
+          "package_name": "com.piyal.alias"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "679075084081-0p8heah3t9oespo8ieqh6fvntdabc5mj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsU5GSVWKQCtktniUSAqhRjDQj69owCeQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "679075084081-0p8heah3t9oespo8ieqh6fvntdabc5mj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

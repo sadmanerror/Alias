@@ -1,0 +1,43 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function: is the requester authenticated?
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper: is the requester the document owner?
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+    
+    // Helper: is the requester a participant in the chat?
+    function isParticipant(chatId) {
+      return request.auth.uid in firestore.get(/databases/(default)/documents/chats/$(chatId)).data.participants;
+    }
+    
+    // Helper: check file size (limit 30MB)
+    function isSizeValid() {
+      return request.resource.size < 30 * 1024 * 1024;
+    }
+
+    // Helper: check valid media types
+    function isValidMediaType() {
+      return request.resource.contentType.matches('image/.*') || 
+             request.resource.contentType.matches('video/.*') || 
+             request.resource.contentType.matches('audio/.*') || 
+             request.resource.contentType.matches('application/pdf');
+    }
+
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isOwner(userId) && isSizeValid() && isValidMediaType();
+    }
+    
+    match /chats/{chatId}/{allPaths=**} {
+      allow read: if isAuthenticated(); // Or restrict to participants: isParticipant(chatId)
+      allow write: if isAuthenticated() && isParticipant(chatId) && isSizeValid() && isValidMediaType();
+    }
+  }
+}
