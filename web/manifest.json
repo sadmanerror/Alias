@@ -1,11 +1,11 @@
 {
-    "name": "alias",
-    "short_name": "alias",
+    "name": "Alias",
+    "short_name": "Alias",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F7F7F7",
+    "theme_color": "#8DA399",
+    "description": "Private, secure real-time messaging.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

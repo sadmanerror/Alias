@@ -1,4 +1,4 @@
-name: Build Alias APK
+name: Build Alias APK and Deploy Web App
 
 on:
   push:
@@ -7,10 +7,16 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build Release APK
+    name: Build Release APK & Web App
     runs-on: ubuntu-latest
 
     steps:
@@ -50,6 +56,14 @@ jobs:
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/Alias.apk
           ls -lh build/app/outputs/flutter-apk/
 
+      - name: Build Web PWA for iOS & Browsers
+        run: flutter build web --release --base-href="/Alias/"
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
       - name: Upload Alias-arm64-v8a.apk artifact
         uses: actions/upload-artifact@v4
         with:
@@ -66,22 +80,28 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            ### 📱 Alias Android Release APK (Lightweight ~30MB)
-            
-            Download and install **`Alias-arm64-v8a.apk`** (or `Alias.apk`) directly on your Android device!
-            
-            #### 📦 Downloads:
-            - 📲 **[`Alias-arm64-v8a.apk`](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-arm64-v8a.apk)** (~30MB — Recommended for all modern Android phones)
-            - 📲 **[`Alias-armeabi-v7a.apk`](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-armeabi-v7a.apk)** (~25MB — For older 32-bit Android devices)
-            - 📲 **[`Alias.apk`](https://github.com/sadmanerror/Alias/releases/latest/download/Alias.apk)** (~30MB — Direct download)
-            
-            #### ✨ Highlights:
-            - ⚡ Instant real-time 1-on-1 private messaging
-            - 🖼️ Free device photo & media sharing (no paid cloud required)
-            - 🎙️ Voice messages with waveform playback
-            - 📞 Audio & Video calls powered by Agora RTC
-            - 👤 Profile customization directly from your device's Camera or Gallery
+            ### 📱 Alias Android Release APK & iOS Web App
+
+            #### 📲 Android Download:
+            - **[`Alias-arm64-v8a.apk`](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-arm64-v8a.apk)** (~30MB — Modern Android phones)
+            - **[`Alias-armeabi-v7a.apk`](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-armeabi-v7a.apk)** (~25MB — Older 32-bit Android phones)
+
+            #### 🍎 iOS / iPhone & Web Users:
+            - Open **[https://sadmanerror.github.io/Alias/](https://sadmanerror.github.io/Alias/)** in Safari.
+            - Tap **Share (`↑`)** -> **Add to Home Screen** to install as a native iOS app!
           files: |
             build/app/outputs/flutter-apk/Alias-arm64-v8a.apk
             build/app/outputs/flutter-apk/Alias-armeabi-v7a.apk
             build/app/outputs/flutter-apk/Alias.apk
+
+  deploy-pages:
+    name: Deploy Web App to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
