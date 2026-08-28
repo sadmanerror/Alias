@@ -30,7 +30,7 @@ jobs:
         run: flutter pub get
 
       - name: Build Android Release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Prepare APK output
         run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Alias.apk
