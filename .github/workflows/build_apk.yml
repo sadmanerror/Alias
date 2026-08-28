@@ -38,19 +38,23 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Android Release APK
+      - name: Build Optimized Split-ABI Android Release APKs
         env:
           GRADLE_OPTS: "-Dandroid.newDsl=false -Dandroid.builtInKotlin=false"
-        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
+        run: flutter build apk --release --split-per-abi --no-tree-shake-icons --android-skip-build-dependency-validation
 
-      - name: Prepare APK output
-        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Alias.apk
+      - name: Prepare APK outputs
+        run: |
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/Alias-arm64-v8a.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/Alias-armeabi-v7a.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/Alias.apk
+          ls -lh build/app/outputs/flutter-apk/
 
-      - name: Upload Alias.apk artifact
+      - name: Upload Alias-arm64-v8a.apk artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Alias-APK
-          path: build/app/outputs/flutter-apk/Alias.apk
+          name: Alias-arm64-v8a-APK
+          path: build/app/outputs/flutter-apk/Alias-arm64-v8a.apk
           retention-days: 14
 
       - name: Create or Update GitHub Release
@@ -62,15 +66,22 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            ### 📱 Alias Android Release APK
+            ### 📱 Alias Android Release APK (Lightweight ~30MB)
             
-            Download and install **`Alias.apk`** directly on any Android device.
+            Download and install **`Alias-arm64-v8a.apk`** (or `Alias.apk`) directly on your Android device!
+            
+            #### 📦 Downloads:
+            - 📲 **[`Alias-arm64-v8a.apk`](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-arm64-v8a.apk)** (~30MB — Recommended for all modern Android phones)
+            - 📲 **[`Alias-armeabi-v7a.apk`](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-armeabi-v7a.apk)** (~25MB — For older 32-bit Android devices)
+            - 📲 **[`Alias.apk`](https://github.com/sadmanerror/Alias/releases/latest/download/Alias.apk)** (~30MB — Direct download)
             
             #### ✨ Highlights:
             - ⚡ Instant real-time 1-on-1 private messaging
-            - 🖼️ Free device photo & media sharing
-            - 🎙️ Voice messages with interactive waveform playback
-            - 📞 Audio and video calls
-            - 🎨 Minimalist Sage & Warm Sand aesthetics
+            - 🖼️ Free device photo & media sharing (no paid cloud required)
+            - 🎙️ Voice messages with waveform playback
+            - 📞 Audio & Video calls powered by Agora RTC
             - 👤 Profile customization directly from your device's Camera or Gallery
-          files: build/app/outputs/flutter-apk/Alias.apk
+          files: |
+            build/app/outputs/flutter-apk/Alias-arm64-v8a.apk
+            build/app/outputs/flutter-apk/Alias-armeabi-v7a.apk
+            build/app/outputs/flutter-apk/Alias.apk

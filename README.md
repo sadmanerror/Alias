@@ -4,41 +4,44 @@
   <img src="https://img.shields.io/badge/Platform-Android-green.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/Flutter-3.x-blue.svg" alt="Flutter" />
   <img src="https://img.shields.io/badge/Release-v1.0.0-sage.svg" alt="Release" />
+  <img src="https://img.shields.io/badge/APK%20Size-~30MB-brightgreen.svg" alt="APK Size" />
   <img src="https://img.shields.io/badge/License-MIT-orange.svg" alt="License" />
 </p>
 
 <p align="center">
-  <a href="https://github.com/sadmanerror/Alias/releases/latest/download/Alias.apk">
-    <img src="https://img.shields.io/badge/📥_Download_Android_APK-v1.0.0-2ea44f?style=for-the-badge&logo=android&logoColor=white" height="40" alt="Download APK" />
+  <a href="https://github.com/sadmanerror/Alias/releases/latest/download/Alias-arm64-v8a.apk">
+    <img src="https://img.shields.io/badge/📥_Download_Android_APK_(~30MB)-v1.0.0-2ea44f?style=for-the-badge&logo=android&logoColor=white" height="42" alt="Download APK" />
   </a>
 </p>
 
 ---
 
-## 📲 Direct APK Download
+## 📲 Direct APK Downloads (~30MB)
 
-Anyone visiting this repository can download and install the app directly:
+| Package | Size | Target Devices | Direct Download |
+|---|---|---|---|
+| **`Alias-arm64-v8a.apk`** | **~30MB** | Modern Android Phones (Recommended) | [📥 Download](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-arm64-v8a.apk) |
+| **`Alias-armeabi-v7a.apk`** | **~25MB** | Older 32-bit Android Phones | [📥 Download](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-armeabi-v7a.apk) |
+| **`Alias.apk`** | **~30MB** | Universal Link | [📥 Download](https://github.com/sadmanerror/Alias/releases/latest/download/Alias.apk) |
 
-👉 **[Click Here to Download Alias.apk](https://github.com/sadmanerror/Alias/releases/latest/download/Alias.apk)**
-
-Or visit the **[Releases Section](https://github.com/sadmanerror/Alias/releases)** to grab the latest build.
+Or visit the **[Releases Section](https://github.com/sadmanerror/Alias/releases)** to view all assets.
 
 ### 📥 How to Install:
-1. Tap the **Download APK** link above on your Android phone.
-2. Open the downloaded `Alias.apk` file.
-3. If prompted, allow *"Install from unknown sources"*.
+1. Tap the **Download** link above directly from your Android phone.
+2. Open the downloaded `.apk` file.
+3. If prompted, enable *"Install from unknown sources"*.
 4. Launch **Alias** and start chatting!
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- ⚡ **Instant Messaging**: Real-time 1-on-1 chatting with instant delivery indicators.
+- ⚡ **Instant Messaging**: Real-time 1-on-1 private chat with instant delivery indicators.
 - 🖼️ **Free Device Media & Profile Pictures**: Pick photos directly from your Camera or Gallery without needing paid cloud storage.
-- 🎙️ **Voice Messaging**: Crisp audio recording with dynamic waveform player.
-- 📹 **Audio & Video Calls**: Real-time calling powered by Agora RTC.
+- 🎙️ **Voice Messaging**: Audio recording with interactive waveform playback.
+- 📹 **Audio & Video Calls**: Real-time audio and video calling powered by Agora RTC.
 - 🎨 **Minimalist Design**: Soft Sage Green and Warm Sand visual theme.
-- 🔒 **Private & Secure**: User accounts and encrypted channels.
+- 🔒 **Private & Secure**: Firestore security rules and encrypted channels.
 
 ---
 
