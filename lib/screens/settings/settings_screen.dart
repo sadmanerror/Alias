@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:alias/models/user_model.dart';
 import 'package:alias/providers/settings_provider.dart';
 import 'package:alias/providers/auth_provider.dart';
 import 'package:alias/providers/chat_provider.dart';
+import 'package:alias/widgets/user_avatar.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -45,8 +47,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _backupToDrive() async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Starting backup...')),
       );
       await ref.read(settingsNotifierProvider.notifier).backupToGoogle();
@@ -56,16 +59,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await prefs.setString('lastBackupTime', now);
       if (mounted) {
         setState(() => _lastBackupTime = now);
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Backup successful')),
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Backup failed: $e')),
-        );
-      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('Backup failed: $e')),
+      );
     }
   }
 
@@ -80,7 +81,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Continue'),
           ),
@@ -91,22 +92,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirm != true) return;
 
     if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Restoring backup...')),
       );
       await ref.read(settingsNotifierProvider.notifier).restoreFromGoogle();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Restore successful')),
-        );
-      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Restore successful')),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore failed: $e')),
-        );
-      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('Restore failed: $e')),
+      );
     }
   }
 
@@ -123,18 +121,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           TextButton(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final router = GoRouter.of(context);
               Navigator.of(context).pop();
               try {
                 await ref.read(authNotifierProvider.notifier).logout();
-                if (mounted) {
-                  context.go('/login');
-                }
+                router.go('/login');
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Sign out failed: $e')),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Sign out failed: $e')),
+                );
               }
             },
             child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
@@ -146,83 +142,129 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _showEditProfileDialog(UserModel user) async {
     final usernameController = TextEditingController(text: user.username);
-    final photoController = TextEditingController(text: user.photoUrl ?? '');
+    String currentPhoto = user.photoUrl ?? '';
+    bool isUploadingPhoto = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  prefixText: '@',
-                  border: OutlineInputBorder(),
-                ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future<void> pickPhoto(ImageSource source) async {
+            try {
+              final picker = ImagePicker();
+              final picked = await picker.pickImage(
+                source: source,
+                maxWidth: 512,
+                maxHeight: 512,
+                imageQuality: 75,
+              );
+              if (picked != null) {
+                setDialogState(() => isUploadingPhoto = true);
+                final bytes = await picked.readAsBytes();
+                final url = await ref
+                    .read(storageServiceProvider)
+                    .uploadProfilePhotoBytes(bytes, 'profile_${user.uid}.jpg');
+                setDialogState(() {
+                  currentPhoto = url;
+                  isUploadingPhoto = false;
+                });
+              }
+            } catch (e) {
+              setDialogState(() => isUploadingPhoto = false);
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Edit Profile'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      UserAvatar(
+                        photoUrl: currentPhoto,
+                        username: usernameController.text.isNotEmpty ? usernameController.text : user.username,
+                        size: 80,
+                      ),
+                      if (isUploadingPhoto)
+                        const CircularProgressIndicator(color: Color(0xFF8DA399)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.photo_library, size: 18),
+                        label: const Text('Gallery'),
+                        onPressed: () => pickPhoto(ImageSource.gallery),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.camera_alt, size: 18),
+                        label: const Text('Camera'),
+                        onPressed: () => pickPhoto(ImageSource.camera),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: usernameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      prefixText: '@',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: photoController,
-                decoration: const InputDecoration(
-                  labelText: 'Profile Photo URL',
-                  hintText: 'https://...',
-                  border: OutlineInputBorder(),
-                ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8DA399)),
+                onPressed: () async {
+                  final newUsername = usernameController.text.trim();
+                  if (newUsername.isEmpty) return;
+
+                  final messenger = ScaffoldMessenger.of(context);
+                  Navigator.pop(context);
+                  try {
+                    if (newUsername.toLowerCase() != user.username.toLowerCase()) {
+                      final existing = await ref.read(firestoreServiceProvider).getUserByUsername(newUsername);
+                      if (existing != null && existing.uid != user.uid) {
+                        messenger.showSnackBar(
+                          const SnackBar(content: Text('Username already taken!')),
+                        );
+                        return;
+                      }
+                    }
+
+                    await ref.read(firestoreServiceProvider).updateUserProfile(user.uid, {
+                      'username': newUsername,
+                      'photoUrl': currentPhoto.isNotEmpty ? currentPhoto : null,
+                    });
+
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Profile updated successfully!')),
+                    );
+                  } catch (e) {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('Failed to update profile: $e')),
+                    );
+                  }
+                },
+                child: const Text('Save', style: TextStyle(color: Colors.white)),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8DA399)),
-            onPressed: () async {
-              final newUsername = usernameController.text.trim();
-              final newPhoto = photoController.text.trim();
-              if (newUsername.isEmpty) return;
-
-              Navigator.pop(context);
-              try {
-                if (newUsername.toLowerCase() != user.username.toLowerCase()) {
-                  final existing = await ref.read(firestoreServiceProvider).getUserByUsername(newUsername);
-                  if (existing != null && existing.uid != user.uid) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Username already taken!')),
-                      );
-                    }
-                    return;
-                  }
-                }
-
-                await ref.read(firestoreServiceProvider).updateUserProfile(user.uid, {
-                  'username': newUsername,
-                  'photoUrl': newPhoto.isNotEmpty ? newPhoto : null,
-                });
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Profile updated successfully!')),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to update profile: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -268,20 +310,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: primaryColor,
-                        backgroundImage: currentUser?.photoUrl != null
-                            ? NetworkImage(currentUser!.photoUrl!)
-                            : null,
-                        child: currentUser?.photoUrl == null
-                            ? Text(
-                                currentUser != null && currentUser.username.isNotEmpty
-                                    ? currentUser.username.substring(0, 1).toUpperCase()
-                                    : '?',
-                                style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
-                              )
-                            : null,
+                      UserAvatar(
+                        photoUrl: currentUser?.photoUrl,
+                        username: currentUser?.username ?? '?',
+                        size: 80,
                       ),
                       Container(
                         padding: const EdgeInsets.all(4),
@@ -318,101 +350,164 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // Backup Section
           Card(
-            margin: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'Chat Backup',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.cloud_upload_outlined, color: primaryColor),
+                      SizedBox(width: 8),
+                      Text(
+                        'Google Drive Backup',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text('Last backed up: $_lastBackupTime', style: const TextStyle(color: Colors.grey)),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.cloud_upload, color: primaryColor),
-                  title: const Text('Backup to Google Drive'),
-                  subtitle: const Text('Securely backup your chat history'),
-                  trailing: ElevatedButton(
-                    onPressed: _backupToDrive,
-                    style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-                    child: const Text('Backup Now', style: TextStyle(color: Colors.white)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Last Backup: $_lastBackupTime',
+                    style: const TextStyle(color: Colors.grey, fontSize: 13),
                   ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.restore, color: primaryColor),
-                  title: const Text('Restore from Drive'),
-                  onTap: _restoreFromDrive,
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _backupToDrive,
+                          icon: const Icon(Icons.backup, size: 18),
+                          label: const Text('Backup Now'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _restoreFromDrive,
+                          icon: const Icon(Icons.restore, size: 18),
+                          label: const Text('Restore'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: primaryColor,
+                            side: const BorderSide(color: primaryColor),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
 
           // Notifications Section
           const Padding(
-            padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
-            child: Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            padding: EdgeInsets.fromLTRB(24, 16, 24, 8),
+            child: Text(
+              'NOTIFICATIONS',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
           ),
-          SwitchListTile(
-            title: const Text('Enable notifications'),
-            value: _notificationsEnabled,
-            activeThumbColor: primaryColor,
-            onChanged: (val) => _updateSetting('notificationsEnabled', val),
-          ),
-          SwitchListTile(
-            title: const Text('Message preview'),
-            value: _messagePreviewEnabled,
-            activeThumbColor: primaryColor,
-            onChanged: (val) => _updateSetting('messagePreviewEnabled', val),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+            color: Colors.white,
+            child: Column(
+              children: [
+                SwitchListTile(
+                  value: _notificationsEnabled,
+                  onChanged: (val) => _updateSetting('notificationsEnabled', val),
+                  title: const Text('Enable Notifications'),
+                  activeTrackColor: primaryColor,
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  value: _messagePreviewEnabled,
+                  onChanged: (val) => _updateSetting('messagePreviewEnabled', val),
+                  title: const Text('Message Preview'),
+                  subtitle: const Text('Show message text in notifications'),
+                  activeTrackColor: primaryColor,
+                ),
+              ],
+            ),
           ),
 
           // Calls Section
           const Padding(
-            padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
-            child: Text('Calls', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            padding: EdgeInsets.fromLTRB(24, 16, 24, 8),
+            child: Text(
+              'CALLS',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
           ),
-          SwitchListTile(
-            title: const Text('Auto-accept calls from contacts only'),
-            value: _autoAcceptCalls,
-            activeThumbColor: primaryColor,
-            onChanged: (val) => _updateSetting('autoAcceptCalls', val),
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+            color: Colors.white,
+            child: SwitchListTile(
+              value: _autoAcceptCalls,
+              onChanged: (val) => _updateSetting('autoAcceptCalls', val),
+              title: const Text('Auto-accept Calls'),
+              subtitle: const Text('Automatically accept incoming calls from contacts'),
+              activeTrackColor: primaryColor,
+            ),
           ),
 
-          // Account Section
+          // About Section
           const Padding(
-            padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
-            child: Text('Account', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            padding: EdgeInsets.fromLTRB(24, 16, 24, 8),
+            child: Text(
+              'ABOUT',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
-            onTap: _signOut,
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete_forever, color: Colors.red),
-            title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
-            onTap: () {
-              // Delete account logic
-            },
-          ),
-          
-          const SizedBox(height: 32),
-          
-          // App Info
-          const Center(
-            child: Column(
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+            color: Colors.white,
+            child: const Column(
               children: [
-                Text('Alias', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                Text('Version 1.0.0', style: TextStyle(color: Colors.grey)),
-                SizedBox(height: 8),
-                Text('Secure and seamless messaging.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                ListTile(
+                  title: Text('Version'),
+                  trailing: Text('1.0.0', style: TextStyle(color: Colors.grey)),
+                ),
+                Divider(height: 1),
+                ListTile(
+                  title: Text('Privacy Policy'),
+                  trailing: Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                ),
               ],
             ),
           ),
+
+          const SizedBox(height: 24),
+
+          // Sign Out Button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextButton.icon(
+              onPressed: _signOut,
+              icon: const Icon(Icons.logout, color: Colors.red),
+              label: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 32),
         ],
       ),

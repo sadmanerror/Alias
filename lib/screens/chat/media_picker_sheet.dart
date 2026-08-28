@@ -19,6 +19,7 @@ class MediaPickerSheet extends StatelessWidget {
   }
 
   Future<void> _pickImage(BuildContext context, ImageSource source) async {
+    final messenger = ScaffoldMessenger.of(context);
     if (source == ImageSource.camera) {
       if (!await _requestPermission(Permission.camera)) return;
     } else {
@@ -28,30 +29,32 @@ class MediaPickerSheet extends StatelessWidget {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: source);
     if (pickedFile != null) {
-      _processFile(context, File(pickedFile.path), MessageType.image);
+      _processFileWithMessenger(messenger, File(pickedFile.path), MessageType.image);
     }
   }
 
   Future<void> _pickVideo(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
     if (!await _requestPermission(Permission.videos)) return;
 
     final picker = ImagePicker();
     final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
     if (pickedFile != null) {
-      _processFile(context, File(pickedFile.path), MessageType.video);
+      _processFileWithMessenger(messenger, File(pickedFile.path), MessageType.video);
     }
   }
 
   Future<void> _pickFile(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
     final result = await FilePicker.platform.pickFiles();
     if (result != null && result.files.single.path != null) {
-      _processFile(context, File(result.files.single.path!), MessageType.file);
+      _processFileWithMessenger(messenger, File(result.files.single.path!), MessageType.file);
     }
   }
 
-  void _processFile(BuildContext context, File file, MessageType type) {
+  void _processFileWithMessenger(ScaffoldMessengerState messenger, File file, MessageType type) {
     if (!FileSizeValidator.isValidSize(file)) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('File exceeds the 30MB limit.')),
       );
       return;

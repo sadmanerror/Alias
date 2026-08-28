@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
@@ -186,10 +187,24 @@ class _ChatBubbleState extends State<ChatBubble> {
           ),
         );
       case MessageType.image:
+        final mediaUrl = message.mediaUrl ?? '';
+        if (mediaUrl.startsWith('data:image')) {
+          try {
+            final base64Str = mediaUrl.split(',').last;
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.memory(
+                base64Decode(base64Str),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+              ),
+            );
+          } catch (_) {}
+        }
         return ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: CachedNetworkImage(
-            imageUrl: message.mediaUrl ?? '',
+            imageUrl: mediaUrl,
             fit: BoxFit.cover,
             placeholder: (context, url) => const SizedBox(
               width: 200,

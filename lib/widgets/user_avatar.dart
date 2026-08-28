@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
@@ -18,15 +19,27 @@ class UserAvatar extends StatelessWidget {
     this.isOnline = false,
   });
 
+  ImageProvider? _getImageProvider() {
+    if (photoUrl == null || photoUrl!.isEmpty) return null;
+    if (photoUrl!.startsWith('data:image')) {
+      try {
+        final base64Str = photoUrl!.split(',').last;
+        return MemoryImage(base64Decode(base64Str));
+      } catch (_) {
+        return null;
+      }
+    }
+    return CachedNetworkImageProvider(photoUrl!);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final imageProvider = _getImageProvider();
     final Widget avatar = CircleAvatar(
       radius: size / 2,
       backgroundColor: const Color(0xFF8DA399),
-      backgroundImage: photoUrl != null && photoUrl!.isNotEmpty
-          ? CachedNetworkImageProvider(photoUrl!)
-          : null,
-      child: (photoUrl == null || photoUrl!.isEmpty)
+      backgroundImage: imageProvider,
+      child: (imageProvider == null)
           ? Text(
               username.isNotEmpty ? username[0].toUpperCase() : '?',
               style: TextStyle(

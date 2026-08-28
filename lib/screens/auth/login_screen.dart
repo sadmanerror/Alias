@@ -70,20 +70,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               final email = resetEmailController.text.trim();
               if (email.isEmpty) return;
 
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
               try {
                 await ref.read(authServiceProvider).sendPasswordResetEmail(email);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Password reset email sent to $email! Check your inbox.')),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Password reset email sent to $email! Check your inbox.')),
+                );
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to send reset email: $e')),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Failed to send reset email: $e')),
+                );
               }
             },
             child: const Text('Send Reset Link', style: TextStyle(color: Colors.white)),

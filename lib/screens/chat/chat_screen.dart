@@ -13,6 +13,7 @@ import 'package:alias/screens/chat/media_picker_sheet.dart';
 import 'package:alias/widgets/chat_bubble.dart';
 import 'package:alias/core/utils/date_formatter.dart';
 import 'package:alias/services/giphy_service.dart';
+import 'package:alias/widgets/user_avatar.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -25,7 +26,6 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   static const Color primarySageGreen = Color(0xFF8DA399);
-  static const Color warmSand = Color(0xFFE8DCC4);
   static const Color offWhite = Color(0xFFF7F7F7);
   static const Color textPrimary = Color(0xFF2C3E35);
 
@@ -167,17 +167,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (partner == null) return const Text('Chat');
             return Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: warmSand,
-                  backgroundImage: partner.photoUrl != null ? NetworkImage(partner.photoUrl!) : null,
-                  child: partner.photoUrl == null
-                      ? Text(
-                          partner.username.isNotEmpty
-                              ? partner.username.substring(0, 1).toUpperCase()
-                              : '?',
-                          style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
-                        )
-                      : null,
+                UserAvatar(
+                  photoUrl: partner.photoUrl,
+                  username: partner.username,
+                  size: 38,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

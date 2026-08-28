@@ -37,10 +37,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Firebase config (tracked for building APK)
-# lib/firebase_options.dart
-# android/app/google-services.json
-# ios/Runner/GoogleService-Info.plist
+# Firebase config (add these after running flutterfire configure)
+lib/firebase_options.dart
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
 
 # Flutter SDK (installed inside project folder)
 /flutter/

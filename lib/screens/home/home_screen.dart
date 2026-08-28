@@ -8,6 +8,7 @@ import 'package:alias/providers/chat_provider.dart';
 import 'package:alias/providers/call_provider.dart';
 import 'package:alias/providers/auth_provider.dart';
 import 'package:alias/core/utils/date_formatter.dart';
+import 'package:alias/widgets/user_avatar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -325,14 +326,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             if (_searchedUser != null)
               ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: warmSand,
-                  backgroundImage: _searchedUser!.photoUrl != null
-                      ? NetworkImage(_searchedUser!.photoUrl!)
-                      : null,
-                  child: _searchedUser!.photoUrl == null
-                      ? Text(_searchedUser!.username[0].toUpperCase())
-                      : null,
+                leading: UserAvatar(
+                  photoUrl: _searchedUser!.photoUrl,
+                  username: _searchedUser!.username,
+                  size: 44,
                 ),
                 title: Text(_searchedUser!.username, style: const TextStyle(fontWeight: FontWeight.bold)),
                 trailing: ElevatedButton(
@@ -380,34 +377,12 @@ class ChatTile extends ConsumerWidget {
 
     return ListTile(
       onTap: () => context.go('/chat/${chat.chatId}'),
-      leading: Stack(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: const Color(0xFFE8DCC4),
-            backgroundImage: partner?.photoUrl != null ? NetworkImage(partner!.photoUrl!) : null,
-            child: partner?.photoUrl == null
-                ? Text(
-                    displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : '?',
-                    style: const TextStyle(color: Color(0xFF2C3E35), fontWeight: FontWeight.bold, fontSize: 18),
-                  )
-                : null,
-          ),
-          // Single status indicator on chat head: Green if online, Dark if offline
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: (partner?.isOnline == true) ? const Color(0xFF4CAF50) : const Color(0xFF6B7C74),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-            ),
-          ),
-        ],
+      leading: UserAvatar(
+        photoUrl: partner?.photoUrl,
+        username: displayName,
+        size: 48,
+        showOnlineBadge: true,
+        isOnline: partner?.isOnline == true,
       ),
       title: Text(
         displayName,
