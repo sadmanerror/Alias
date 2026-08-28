@@ -328,3 +328,4 @@ If you want to build another app like this in the future, follow this proven roa
 ---
 
 *This guide was generated for the Alias Project repository. Happy coding! 🚀*
+
