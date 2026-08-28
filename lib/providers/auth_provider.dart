@@ -1,39 +1,31 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:alias/services/auth_service.dart';
 import 'package:alias/models/user_model.dart';
 
-part 'auth_provider.g.dart';
-
-@riverpod
-AuthService authService(Ref ref) {
+final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService(
     FirebaseAuth.instance,
     FirebaseFirestore.instance,
   );
-}
+});
 
-@riverpod
-Stream<User?> authState(Ref ref) {
+final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(authServiceProvider).authStateChanges;
-}
+});
 
-@riverpod
-Future<UserModel?> currentUserModel(Ref ref) async {
-  final user = await ref.watch(authStateProvider.future);
+final currentUserModelProvider = FutureProvider<UserModel?>((ref) async {
+  final user = ref.watch(authStateProvider).value;
   if (user != null) {
     return ref.watch(authServiceProvider).getUserModel(user.uid);
   }
   return null;
-}
+});
 
-@riverpod
-class AuthNotifier extends _$AuthNotifier {
-  @override
-  FutureOr<UserModel?> build() async {
-    return ref.watch(currentUserModelProvider.future);
-  }
+class AuthNotifier extends StateNotifier<AsyncValue<UserModel?>> {
+  final Ref ref;
+  AuthNotifier(this.ref) : super(const AsyncValue.data(null));
 
   Future<void> register(String email, String password, String username) async {
     state = const AsyncValue.loading();
@@ -69,4 +61,6 @@ class AuthNotifier extends _$AuthNotifier {
   String? get errorMessage => state.error?.toString();
 }
 
-final authNotifierProvider = authProvider;
+final authNotifierProvider = StateNotifierProvider<AuthNotifier, AsyncValue<UserModel?>>((ref) {
+  return AuthNotifier(ref);
+});

@@ -1,31 +1,27 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alias/services/agora_service.dart';
 import 'package:alias/models/call_model.dart';
 import 'package:alias/core/config/app_config.dart';
 import 'package:alias/providers/auth_provider.dart';
 import 'package:alias/providers/chat_provider.dart';
 
-part 'call_provider.g.dart';
-
-@riverpod
-AgoraService agoraService(Ref ref) {
+final agoraServiceProvider = Provider<AgoraService>((ref) {
   return AgoraService(AppConfig.agoraAppId);
-}
+});
 
-final callNotifierProvider = callProvider;
-
-@riverpod
-class CallNotifier extends _$CallNotifier {
+class CallNotifier extends StateNotifier<AsyncValue<void>> {
+  final Ref ref;
   CallModel? _activeCall;
   bool _isMuted = false;
   bool _isCameraOn = true;
 
+  CallNotifier(this.ref) : super(const AsyncValue.data(null));
+
+  CallNotifier get notifier => this;
+
   bool get isMuted => _isMuted;
   bool get isCameraOn => _isCameraOn;
   CallModel? get activeCall => _activeCall;
-
-  @override
-  FutureOr<void> build() async {}
 
   Future<void> initiateCall({required String calleeId, required String channelName, required CallType callType}) async {
     final caller = ref.read(authStateProvider).value;
@@ -94,9 +90,12 @@ class CallNotifier extends _$CallNotifier {
   }
 }
 
-@riverpod
-Stream<CallModel?> incomingCall(Ref ref) {
+final callNotifierProvider = StateNotifierProvider<CallNotifier, AsyncValue<void>>((ref) {
+  return CallNotifier(ref);
+});
+
+final incomingCallProvider = StreamProvider<CallModel?>((ref) {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return const Stream.empty();
   return ref.watch(firestoreServiceProvider).streamIncomingCalls(user.uid);
-}
+});

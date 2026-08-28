@@ -1,28 +1,25 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:alias/services/drive_backup_service.dart';
 import 'package:alias/services/local_db_service.dart';
 
-part 'settings_provider.g.dart';
-
-@riverpod
-LocalDbService localDbService(Ref ref) {
+final localDbServiceProvider = Provider<LocalDbService>((ref) {
   return LocalDbService();
-}
+});
 
-@riverpod
-DriveBackupService driveBackupService(Ref ref) {
+final driveBackupServiceProvider = Provider<DriveBackupService>((ref) {
   return DriveBackupService(GoogleSignIn(scopes: ['email', 'https://www.googleapis.com/auth/drive.appdata']));
-}
+});
 
-@riverpod
-class SettingsNotifier extends _$SettingsNotifier {
+class SettingsNotifier extends StateNotifier<AsyncValue<void>> {
+  final Ref ref;
   bool _isDarkMode = false;
 
-  bool get isDarkMode => _isDarkMode;
+  SettingsNotifier(this.ref) : super(const AsyncValue.data(null));
 
-  @override
-  FutureOr<void> build() async {}
+  SettingsNotifier get notifier => this;
+
+  bool get isDarkMode => _isDarkMode;
 
   Future<BackupResult> backupToGoogle() async {
     final dbPath = await ref.read(localDbServiceProvider).getDatabasePath();
@@ -43,4 +40,6 @@ class SettingsNotifier extends _$SettingsNotifier {
   }
 }
 
-final settingsNotifierProvider = settingsProvider;
+final settingsNotifierProvider = StateNotifierProvider<SettingsNotifier, AsyncValue<void>>((ref) {
+  return SettingsNotifier(ref);
+});

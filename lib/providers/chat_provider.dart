@@ -1,7 +1,6 @@
 import 'dart:io';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:alias/services/firestore_service.dart';
 import 'package:alias/services/storage_service.dart';
 import 'package:alias/models/chat_model.dart';
@@ -11,39 +10,55 @@ import 'package:alias/providers/auth_provider.dart';
 import 'package:alias/services/giphy_service.dart';
 import 'package:http/http.dart' as http;
 
-part 'chat_provider.g.dart';
-
-@riverpod
-GiphyService giphyService(Ref ref) {
+final giphyServiceProvider = Provider<GiphyService>((ref) {
   return GiphyService(http.Client());
-}
+});
 
-@riverpod
-FirestoreService firestoreService(Ref ref) {
+final firestoreServiceProvider = Provider<FirestoreService>((ref) {
   return FirestoreService(FirebaseFirestore.instance);
-}
+});
 
-@riverpod
-StorageService storageService(Ref ref) {
-  return StorageService(FirebaseStorage.instance);
-}
+final storageServiceProvider = Provider<StorageService>((ref) {
+  return StorageService();
+});
 
-@riverpod
-Stream<List<ChatModel>> userChats(Ref ref) {
+final userChatsProvider = StreamProvider<List<ChatModel>>((ref) {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return Stream.value(<ChatModel>[]);
   return ref.watch(firestoreServiceProvider).getUserChats(user.uid);
-}
+});
 
-@riverpod
-Stream<List<MessageModel>> chatMessages(Ref ref, String chatId) {
+final chatMessagesProvider = StreamProvider.family<List<MessageModel>, String>((ref, chatId) {
   return ref.watch(firestoreServiceProvider).getMessages(chatId);
-}
+});
 
-@riverpod
-class MessageNotifier extends _$MessageNotifier {
-  @override
-  FutureOr<void> build(String chatId) async {}
+final userProfileProvider = StreamProvider.family<UserModel?, String>((ref, uid) {
+  if (uid.isEmpty) return Stream.value(null);
+  return ref.watch(firestoreServiceProvider).streamUser(uid);
+});
+
+final chatPartnerProvider = FutureProvider.family<UserModel?, String>((ref, chatId) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return null;
+  try {
+    final chats = await ref.watch(firestoreServiceProvider).getUserChats(user.uid).first;
+    final chat = chats.where((c) => c.chatId == chatId).firstOrNull;
+    if (chat == null) return null;
+    final partnerId = chat.getOtherParticipantId(user.uid);
+    if (partnerId.isEmpty) return null;
+    return await ref.watch(firestoreServiceProvider).getUserById(partnerId);
+  } catch (e) {
+    return null;
+  }
+});
+
+class MessageNotifier {
+  final Ref ref;
+  final String chatId;
+
+  MessageNotifier(this.ref, this.chatId);
+
+  MessageNotifier get notifier => this;
 
   String _getPartnerId(String currentUid) {
     final parts = chatId.split('_');
@@ -174,27 +189,6 @@ class MessageNotifier extends _$MessageNotifier {
   }
 }
 
-@riverpod
-Stream<UserModel?> userProfile(Ref ref, String uid) {
-  if (uid.isEmpty) return Stream.value(null);
-  return ref.watch(firestoreServiceProvider).streamUser(uid);
-}
-
-@riverpod
-Future<UserModel?> chatPartner(Ref ref, String chatId) async {
-  final user = ref.watch(authStateProvider).value;
-  if (user == null) return null;
-  try {
-    final chats = await ref.watch(firestoreServiceProvider).getUserChats(user.uid).first;
-    final chat = chats.where((c) => c.chatId == chatId).firstOrNull;
-    if (chat == null) return null;
-    final partnerId = chat.getOtherParticipantId(user.uid);
-    if (partnerId.isEmpty) return null;
-    return await ref.watch(firestoreServiceProvider).getUserById(partnerId);
-  } catch (e) {
-    return null;
-  }
-}
-
-final messageNotifierProvider = messageProvider;
-
+final messageNotifierProvider = Provider.family<MessageNotifier, String>((ref, chatId) {
+  return MessageNotifier(ref, chatId);
+});

@@ -46,7 +46,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       });
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(messageNotifierProvider(widget.chatId).notifier).markAsRead();
+      ref.read(messageNotifierProvider(widget.chatId)).markAsRead();
     });
   }
 
@@ -62,7 +62,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    ref.read(messageNotifierProvider(widget.chatId).notifier).sendTextMessage(text);
+    ref.read(messageNotifierProvider(widget.chatId)).sendTextMessage(text);
     _messageController.clear();
     
     if (_scrollController.hasClients) {
@@ -98,7 +98,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _isRecording = false;
       });
       if (path != null) {
-        ref.read(messageNotifierProvider(widget.chatId).notifier).sendVoiceMessage(File(path), [], 0);
+        ref.read(messageNotifierProvider(widget.chatId)).sendVoiceMessage(File(path), [], 0);
       }
     } catch (e) {
       if (mounted) {
@@ -115,7 +115,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       builder: (context) => MediaPickerSheet(
         onFilePicked: (file, type) {
-          ref.read(messageNotifierProvider(widget.chatId).notifier).sendMediaMessage(file, type);
+          ref.read(messageNotifierProvider(widget.chatId)).sendMediaMessage(file, type);
           Navigator.pop(context);
         },
       ),
@@ -125,7 +125,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _showGifPicker() async {
     final selectedGif = await context.push<dynamic>('/gif-picker/${widget.chatId}');
     if (selectedGif != null && selectedGif is GiphyGif && mounted) {
-      ref.read(messageNotifierProvider(widget.chatId).notifier).sendGif(selectedGif);
+      ref.read(messageNotifierProvider(widget.chatId)).sendGif(selectedGif);
     }
   }
 
@@ -142,7 +142,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (next.hasValue && next.value != null && next.value!.isNotEmpty) {
         final hasUnread = next.value!.any((m) => m.senderId != currentUserId && !m.isRead);
         if (hasUnread) {
-          ref.read(messageNotifierProvider(widget.chatId).notifier).markAsRead();
+          ref.read(messageNotifierProvider(widget.chatId)).markAsRead();
         }
       }
     });
