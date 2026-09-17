@@ -281,10 +281,10 @@ Implemented in `GiphyService` and `GifPickerScreen`:
 
 ---
 
-### Bug 12: Fat APK 100MB+ Bloat & NDK ABI Filtering Defense
-- **Symptom**: Running a standard local `flutter build apk` created packages exceeding 100MB due to x86 and x86_64 desktop emulator binaries.
-- **Root Cause**: Lack of ABI filtering in `build.gradle` forced the packager to bundle desktop emulator binaries alongside mobile ARM binaries.
-- **Solution**: Added `ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }` to `android/app/build.gradle`. This permanently prevents x86 desktop binaries from being bundled, cutting universal APKs to under 50MB and split APKs to **~25-30MB**.
+### Bug 12: Fat Universal APK Bloat vs Clean Split-Per-ABI Release
+- **Symptom**: A single universal APK exceeds 100MB+ due to bundling all 4 native architectures (armeabi-v7a, arm64-v8a, x86, x86_64) with Agora RTC native codecs.
+- **Root Cause**: Universal APK builds package every ABI into a single heavy file. Manually hardcoding `ndk.abiFilters` in `build.gradle` creates conflicts with Gradle's ABI splitting engine.
+- **Solution**: Handled cleanly at the compilation boundary using `flutter build apk --release --split-per-abi`. This instructs Flutter to generate architecture-isolated APKs without Gradle DSL conflicts, delivering lightweight **~30MB** packages for modern phones (`Alias-arm64-v8a.apk`).
 
 ---
 
