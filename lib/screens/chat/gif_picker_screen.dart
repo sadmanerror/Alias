@@ -151,45 +151,74 @@ class _GifPickerScreenState extends ConsumerState<GifPickerScreen> {
           ),
         ),
       ),
-      body: _gifs.isEmpty && !_isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: Column(
+        children: [
+          if (!GiphyService.isApiKeyConfigured)
+            Container(
+              margin: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8DCC4),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
                 children: [
-                  Text('😔', style: TextStyle(fontSize: 48)),
-                  SizedBox(height: 16),
-                  Text('No GIFs found', style: TextStyle(color: Color(0xFF6B7C74))),
+                  Icon(Icons.auto_awesome, size: 16, color: Color(0xFF2C3E35)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Showing curated reaction GIFs. Add your free Giphy API key to unlock full search.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF2C3E35)),
+                    ),
+                  ),
                 ],
               ),
-            )
-          : MasonryGridView.count(
-              controller: _scrollController,
-              crossAxisCount: 2,
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
-              itemCount: _gifs.length + (_isLoading ? 4 : 0),
-              itemBuilder: (context, index) {
-                if (index >= _gifs.length) {
-                  return Container(
-                    height: 150,
-                    color: Colors.grey[300], // Simple shimmer placeholder
-                  );
-                }
-                final gif = _gifs[index];
-                return GestureDetector(
-                  onTap: () => Navigator.pop(context, gif),
-                  child: CachedNetworkImage(
-                    imageUrl: gif.previewUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      height: 150,
-                      color: Colors.grey[300],
-                    ),
-                    errorWidget: (context, url, error) => const Icon(Icons.error),
-                  ),
-                );
-              },
             ),
+          Expanded(
+            child: _gifs.isEmpty && !_isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('😔', style: TextStyle(fontSize: 48)),
+                        SizedBox(height: 16),
+                        Text('No GIFs found',
+                            style: TextStyle(color: Color(0xFF6B7C74))),
+                      ],
+                    ),
+                  )
+                : MasonryGridView.count(
+                    controller: _scrollController,
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 4,
+                    crossAxisSpacing: 4,
+                    itemCount: _gifs.length + (_isLoading ? 4 : 0),
+                    itemBuilder: (context, index) {
+                      if (index >= _gifs.length) {
+                        return Container(
+                          height: 150,
+                          color: Colors.grey[300],
+                        );
+                      }
+                      final gif = _gifs[index];
+                      return GestureDetector(
+                        onTap: () => Navigator.pop(context, gif),
+                        child: CachedNetworkImage(
+                          imageUrl: gif.previewUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            height: 150,
+                            color: Colors.grey[300],
+                          ),
+                          errorWidget: (context, url, error) =>
+                              const Icon(Icons.error),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

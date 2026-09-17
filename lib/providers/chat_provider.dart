@@ -32,6 +32,10 @@ final chatMessagesProvider = StreamProvider.family<List<MessageModel>, String>((
   return ref.watch(firestoreServiceProvider).getMessages(chatId);
 });
 
+final singleChatProvider = StreamProvider.family<ChatModel?, String>((ref, chatId) {
+  return ref.watch(firestoreServiceProvider).streamChat(chatId);
+});
+
 final userProfileProvider = StreamProvider.family<UserModel?, String>((ref, uid) {
   if (uid.isEmpty) return Stream.value(null);
   return ref.watch(firestoreServiceProvider).streamUser(uid);

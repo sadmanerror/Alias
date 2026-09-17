@@ -12,6 +12,8 @@ import 'package:alias/screens/chat/emoji_picker_sheet.dart';
 import 'package:alias/screens/chat/media_picker_sheet.dart';
 import 'package:alias/widgets/chat_bubble.dart';
 import 'package:alias/core/utils/date_formatter.dart';
+import 'package:alias/screens/chat/group_settings_sheet.dart';
+import 'package:alias/screens/chat/user_settings_sheet.dart';
 import 'package:alias/services/giphy_service.dart';
 import 'package:alias/widgets/user_avatar.dart';
 
@@ -26,7 +28,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   static const Color primarySageGreen = Color(0xFF8DA399);
-  static const Color offWhite = Color(0xFFF7F7F7);
+  static const Color offWhite = Color(0xFFF0E8D8);   // warm cream
   static const Color textPrimary = Color(0xFF2C3E35);
 
   final TextEditingController _messageController = TextEditingController();
@@ -147,6 +149,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
+    final chatAsync = ref.watch(singleChatProvider(widget.chatId));
+    final chat = chatAsync.value;
+    final isGroup = chat?.isGroup ?? false;
+
     return Scaffold(
       backgroundColor: offWhite,
       appBar: AppBar(
@@ -162,85 +168,227 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             }
           },
         ),
-        title: initialPartnerAsync.when(
-          data: (_) {
-            if (partner == null) return const Text('Chat');
-            return Row(
-              children: [
-                UserAvatar(
-                  photoUrl: partner.photoUrl,
-                  username: partner.username,
-                  size: 38,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        title: isGroup
+            ? InkWell(
+                onTap: () {
+                  if (chat != null) {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => GroupSettingsSheet(chat: chat),
+                    );
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
+                  child: Row(
                     children: [
-                      Text(
-                        partner.username.isNotEmpty ? partner.username : 'Chat',
-                        style: const TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
+                      UserAvatar(
+                        photoUrl: chat?.groupPhotoUrl,
+                        username: chat?.groupName ?? 'G',
+                        size: 38,
+                        showOnlineBadge: false,
                       ),
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            margin: const EdgeInsets.only(right: 4),
-                            decoration: BoxDecoration(
-                              color: partner.isOnline ? Colors.green : Colors.grey.shade400,
-                              shape: BoxShape.circle,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              chat?.groupName ?? 'Group',
+                              style: const TextStyle(
+                                color: textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          Text(
-                            partner.isOnline
-                                ? 'Online'
-                                : (partner.lastSeen != null
-                                    ? DateFormatter.formatLastSeen(partner.lastSeen!)
-                                    : 'Offline'),
-                            style: TextStyle(
-                              color: partner.isOnline ? Colors.green.shade700 : Colors.grey,
-                              fontSize: 12,
-                              fontWeight: partner.isOnline ? FontWeight.w600 : FontWeight.normal,
+                            Text(
+                              '${chat?.participants.length ?? 0} members • Tap for settings',
+                              style: const TextStyle(
+                                color: Color(0xFF8A9080),
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            );
-          },
-          loading: () => const Text('Loading...'),
-          error: (_, __) => const Text('Chat'),
-        ),
+              )
+            : initialPartnerAsync.when(
+                data: (_) {
+                  if (partner == null) return const Text('Chat');
+                  final displayName = chat?.displayName(partner.username, partner.uid) ??
+                      (partner.username.isNotEmpty ? partner.username : 'Chat');
+                  final isMuted = chat?.isMutedFor(currentUserId) ?? false;
+
+                  return InkWell(
+                    onTap: () {
+                      if (chat != null) {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => UserSettingsSheet(
+                            chat: chat,
+                            partner: partner,
+                          ),
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
+                      child: Row(
+                        children: [
+                          UserAvatar(
+                            photoUrl: partner.photoUrl,
+                            username: partner.username,
+                            size: 38,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        displayName,
+                                        style: const TextStyle(
+                                          color: textPrimary,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isMuted) ...[
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.notifications_off_outlined,
+                                        size: 14,
+                                        color: Color(0xFF8A9080),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      margin: const EdgeInsets.only(right: 4),
+                                      decoration: BoxDecoration(
+                                        color: partner.isOnline
+                                            ? Colors.green
+                                            : Colors.grey.shade400,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    Text(
+                                      partner.isOnline
+                                          ? 'Online'
+                                          : (partner.lastSeen != null
+                                              ? DateFormatter.formatLastSeen(
+                                                  partner.lastSeen!)
+                                              : 'Offline'),
+                                      style: TextStyle(
+                                        color: partner.isOnline
+                                            ? Colors.green.shade700
+                                            : Colors.grey,
+                                        fontSize: 12,
+                                        fontWeight: partner.isOnline
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                loading: () => const Text('Loading...'),
+                error: (_, __) => const Text('Chat'),
+              ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.videocam, color: primarySageGreen),
-            onPressed: () {
-              if (partner != null) {
-                ref.read(callNotifierProvider.notifier).initiateCall(
-                      calleeId: partner.uid,
-                      channelName: widget.chatId,
-                      callType: CallType.video,
-                    );
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.call, color: primarySageGreen),
-            onPressed: () {
-              if (partner != null) {
-                ref.read(callNotifierProvider.notifier).initiateCall(
-                      calleeId: partner.uid,
-                      channelName: widget.chatId,
-                      callType: CallType.audio,
-                    );
-              }
-            },
-          ),
+          if (isGroup)
+            IconButton(
+              icon: const Icon(Icons.info_outline, color: primarySageGreen),
+              onPressed: () {
+                if (chat != null) {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => GroupSettingsSheet(chat: chat),
+                  );
+                }
+              },
+            )
+          else ...[
+            IconButton(
+              icon: const Icon(Icons.videocam, color: primarySageGreen),
+              onPressed: () async {
+                if (partner != null) {
+                  final callId = await ref
+                      .read(callNotifierProvider.notifier)
+                      .initiateCall(
+                        calleeId: partner.uid,
+                        channelName: widget.chatId,
+                        callType: CallType.video,
+                      );
+                  if (context.mounted && callId != null) {
+                    context.push('/active-call/$callId');
+                  }
+                }
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.call, color: primarySageGreen),
+              onPressed: () async {
+                if (partner != null) {
+                  final callId = await ref
+                      .read(callNotifierProvider.notifier)
+                      .initiateCall(
+                        calleeId: partner.uid,
+                        channelName: widget.chatId,
+                        callType: CallType.audio,
+                      );
+                  if (context.mounted && callId != null) {
+                    context.push('/active-call/$callId');
+                  }
+                }
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.info_outline, color: primarySageGreen),
+              onPressed: () {
+                if (chat != null && partner != null) {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => UserSettingsSheet(
+                      chat: chat,
+                      partner: partner,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
         ],
       ),
       body: Column(
@@ -303,7 +451,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     return Container(
-      color: Colors.white,
+      color: const Color(0xFFEFE7D7), // warm cream input bar
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: SafeArea(
         child: Row(

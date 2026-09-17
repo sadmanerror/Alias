@@ -75,8 +75,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: v1.0.0
-          name: "Alias v1.0.0"
+          tag_name: v1.1.0
+          name: "Alias v1.1.0"
           draft: false
           prerelease: false
           body: |

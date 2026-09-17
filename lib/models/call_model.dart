@@ -14,6 +14,7 @@ class CallModel extends Equatable {
   final DateTime startedAt;
   final DateTime? endedAt;
   final String? agoraToken;
+  final String? callerName;
 
   const CallModel({
     required this.callId,
@@ -25,13 +26,14 @@ class CallModel extends Equatable {
     required this.startedAt,
     this.endedAt,
     this.agoraToken,
+    this.callerName,
   });
 
   factory CallModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
     return CallModel(
-      callId: data['callId'] as String? ?? doc.id,
+      callId: doc.id.isNotEmpty ? doc.id : (data['callId'] as String? ?? ''),
       callerId: data['callerId'] as String? ?? '',
       calleeId: data['calleeId'] as String? ?? '',
       channelName: data['channelName'] as String? ?? '',
@@ -46,6 +48,7 @@ class CallModel extends Equatable {
       startedAt: (data['startedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       endedAt: (data['endedAt'] as Timestamp?)?.toDate(),
       agoraToken: data['agoraToken'] as String?,
+      callerName: data['callerName'] as String?,
     );
   }
 
@@ -54,7 +57,7 @@ class CallModel extends Equatable {
 
   factory CallModel.fromMap(Map<String, dynamic> data, String id) {
     return CallModel(
-      callId: data['callId'] as String? ?? id,
+      callId: id.isNotEmpty ? id : (data['callId'] as String? ?? ''),
       callerId: data['callerId'] as String? ?? '',
       calleeId: data['calleeId'] as String? ?? '',
       channelName: data['channelName'] as String? ?? '',
@@ -73,6 +76,7 @@ class CallModel extends Equatable {
           ? (data['endedAt'] as Timestamp).toDate() 
           : null,
       agoraToken: data['agoraToken'] as String?,
+      callerName: data['callerName'] as String?,
     );
   }
 
@@ -87,6 +91,7 @@ class CallModel extends Equatable {
       'startedAt': Timestamp.fromDate(startedAt),
       'endedAt': endedAt != null ? Timestamp.fromDate(endedAt!) : null,
       'agoraToken': agoraToken,
+      'callerName': callerName,
     };
   }
 
@@ -94,7 +99,8 @@ class CallModel extends Equatable {
 
   String get id => callId;
   DateTime get timestamp => startedAt;
-  String get callerName => callerId;
+  String get displayCallerName =>
+      (callerName != null && callerName!.isNotEmpty) ? callerName! : callerId;
 
   CallModel copyWith({
     String? callId,
@@ -106,6 +112,7 @@ class CallModel extends Equatable {
     DateTime? startedAt,
     DateTime? endedAt,
     String? agoraToken,
+    String? callerName,
   }) {
     return CallModel(
       callId: callId ?? this.callId,
@@ -117,6 +124,7 @@ class CallModel extends Equatable {
       startedAt: startedAt ?? this.startedAt,
       endedAt: endedAt ?? this.endedAt,
       agoraToken: agoraToken ?? this.agoraToken,
+      callerName: callerName ?? this.callerName,
     );
   }
 
@@ -136,5 +144,6 @@ class CallModel extends Equatable {
         startedAt,
         endedAt,
         agoraToken,
+        callerName,
       ];
 }

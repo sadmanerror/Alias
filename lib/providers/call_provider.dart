@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:alias/services/agora_service.dart';
 import 'package:alias/models/call_model.dart';
 import 'package:alias/core/config/app_config.dart';
@@ -23,24 +25,50 @@ class CallNotifier extends StateNotifier<AsyncValue<void>> {
   bool get isCameraOn => _isCameraOn;
   CallModel? get activeCall => _activeCall;
 
-  Future<void> initiateCall({required String calleeId, required String channelName, required CallType callType}) async {
+  Future<String?> initiateCall({
+    required String calleeId,
+    required String channelName,
+    required CallType callType,
+  }) async {
     final caller = ref.read(authStateProvider).value;
-    if (caller == null) return;
-    
+    if (caller == null) return null;
+
+    final currentUser = ref.read(currentUserModelProvider).value;
+    final callerName = currentUser?.username ?? caller.displayName ?? '';
+
     state = const AsyncValue.loading();
+    String? createdCallId;
     state = await AsyncValue.guard(() async {
+      final docRef = FirebaseFirestore.instance.collection('calls').doc();
+      final callId = docRef.id;
+      createdCallId = callId;
+
       final call = CallModel(
-        callId: channelName,
+        callId: callId,
         callerId: caller.uid,
         calleeId: calleeId,
         channelName: channelName,
         type: callType,
         status: CallStatus.ringing,
         startedAt: DateTime.now(),
+        callerName: callerName,
       );
       _activeCall = call;
       await ref.read(firestoreServiceProvider).initiateCall(call);
+
+      try {
+        await ref.read(agoraServiceProvider).joinChannel(
+          channelName: channelName,
+          token: call.agoraToken ?? '',
+          uid: 0,
+          withVideo: callType == CallType.video,
+        );
+      } catch (e) {
+        debugPrint('Agora joinChannel non-fatal error: $e');
+      }
     });
+
+    return createdCallId;
   }
 
   Future<void> acceptCall(CallModel call) async {
@@ -48,12 +76,16 @@ class CallNotifier extends StateNotifier<AsyncValue<void>> {
     state = await AsyncValue.guard(() async {
       _activeCall = call;
       await ref.read(firestoreServiceProvider).updateCallStatus(call.callId, 'active');
-      await ref.read(agoraServiceProvider).joinChannel(
-        channelName: call.channelName,
-        token: call.agoraToken ?? '',
-        uid: 0,
-        withVideo: call.type == CallType.video,
-      );
+      try {
+        await ref.read(agoraServiceProvider).joinChannel(
+          channelName: call.channelName,
+          token: call.agoraToken ?? '',
+          uid: 0,
+          withVideo: call.type == CallType.video,
+        );
+      } catch (e) {
+        debugPrint('Agora joinChannel non-fatal error: $e');
+      }
     });
   }
 
@@ -70,7 +102,11 @@ class CallNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await ref.read(firestoreServiceProvider).updateCallStatus(_activeCall!.callId, 'ended');
-      await ref.read(agoraServiceProvider).leaveChannel();
+      try {
+        await ref.read(agoraServiceProvider).leaveChannel();
+      } catch (e) {
+        debugPrint('Agora leaveChannel non-fatal error: $e');
+      }
       _activeCall = null;
     });
   }

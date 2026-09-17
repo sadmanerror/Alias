@@ -1,12 +1,15 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/widgets.dart';
 import 'package:alias/core/config/app_config.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AgoraService {
   final String appId;
   RtcEngine? _engine;
+  bool _isInitialized = false;
   
   Function(int)? onUserJoined;
   Function(int)? onUserOffline;
@@ -15,28 +18,59 @@ class AgoraService {
 
   AgoraService(this.appId);
 
-  Future<void> initialize() async {
-    _engine = createAgoraRtcEngine();
-    await _engine!.initialize(RtcEngineContext(appId: appId));
+  RtcEngine? get engine => _engine;
+  bool get isInitialized => _isInitialized && _engine != null;
 
-    _engine!.registerEventHandler(
-      RtcEngineEventHandler(
-        onJoinChannelSuccess: (RtcConnection connection, int elapsed) {},
-        onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
-          onUserJoined?.call(remoteUid);
-        },
-        onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
-          onUserOffline?.call(remoteUid);
-        },
-        onError: (ErrorCodeType err, String msg) {
-          onError?.call(0, err);
-        },
-      ),
-    );
+  Future<void> initialize() async {
+    if (appId.isEmpty || appId == 'YOUR_AGORA_APP_ID') {
+      debugPrint('Agora App ID is not configured in AppConfig.agoraAppId!');
+      return;
+    }
+    if (_isInitialized && _engine != null) return;
+
+    try {
+      _engine = createAgoraRtcEngine();
+      await _engine!.initialize(RtcEngineContext(
+        appId: appId,
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+      ));
+
+      _engine!.registerEventHandler(
+        RtcEngineEventHandler(
+          onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+            debugPrint('Agora onJoinChannelSuccess: channel=${connection.channelId}, uid=${connection.localUid}');
+          },
+          onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
+            debugPrint('Agora onUserJoined: remoteUid=$remoteUid');
+            onUserJoined?.call(remoteUid);
+          },
+          onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
+            debugPrint('Agora onUserOffline: remoteUid=$remoteUid');
+            onUserOffline?.call(remoteUid);
+          },
+          onError: (ErrorCodeType err, String msg) {
+            debugPrint('Agora onError: $err, msg: $msg');
+            onError?.call(0, err);
+          },
+        ),
+      );
+
+      await _engine!.enableAudio();
+      await _engine!.enableLocalAudio(true);
+      await _engine!.setDefaultAudioRouteToSpeakerphone(true);
+      _isInitialized = true;
+    } catch (e) {
+      debugPrint('Agora initialize error: $e');
+      _engine = null;
+      _isInitialized = false;
+    }
   }
 
   Future<String?> fetchToken(String channelName, int uid) async {
-    if (AppConfig.agoraTokenServerUrl.isEmpty) return null;
+    if (AppConfig.agoraTokenServerUrl.isEmpty ||
+        AppConfig.agoraTokenServerUrl == 'YOUR_TOKEN_SERVER_URL') {
+      return null;
+    }
     
     try {
       final response = await http.post(
@@ -53,7 +87,7 @@ class AgoraService {
         return data['token'];
       }
     } catch (e) {
-      // Handle error
+      debugPrint('Fetch token error: $e');
     }
     return null;
   }
@@ -64,44 +98,99 @@ class AgoraService {
     required int uid,
     required bool withVideo,
   }) async {
-    if (_engine == null) return;
-
-    if (withVideo) {
-      await _engine!.enableVideo();
-    } else {
-      await _engine!.disableVideo();
+    // Request permissions on native platforms
+    if (!kIsWeb) {
+      try {
+        await Permission.microphone.request();
+        if (withVideo) {
+          await Permission.camera.request();
+        }
+      } catch (e) {
+        debugPrint('Permission request error: $e');
+      }
     }
 
-    await _engine!.joinChannel(
-      token: token,
-      channelId: channelName,
-      uid: uid,
-      options: const ChannelMediaOptions(
-        clientRoleType: ClientRoleType.clientRoleBroadcaster,
-      ),
-    );
+    if (!_isInitialized || _engine == null) {
+      await initialize();
+    }
+    if (_engine == null) {
+      debugPrint('Agora engine is not available. Skipping joinChannel.');
+      return;
+    }
+
+    try {
+      if (withVideo) {
+        await _engine!.enableVideo();
+      } else {
+        await _engine!.disableVideo();
+      }
+
+      await _engine!.joinChannel(
+        token: token,
+        channelId: channelName,
+        uid: uid,
+        options: ChannelMediaOptions(
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+          channelProfile: ChannelProfileType.channelProfileCommunication,
+          publishMicrophoneTrack: true,
+          publishCameraTrack: withVideo,
+          autoSubscribeAudio: true,
+          autoSubscribeVideo: withVideo,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Agora joinChannel error: $e');
+    }
   }
 
   Future<void> leaveChannel() async {
-    await _engine?.leaveChannel();
-    await dispose();
+    try {
+      await _engine?.leaveChannel();
+    } catch (e) {
+      debugPrint('Agora leaveChannel error: $e');
+    }
   }
 
   Future<void> toggleMute(bool mute) async {
-    await _engine?.muteLocalAudioStream(mute);
+    try {
+      await _engine?.muteLocalAudioStream(mute);
+    } catch (e) {
+      debugPrint('Agora toggleMute error: $e');
+    }
+  }
+
+  Future<void> toggleSpeaker(bool speaker) async {
+    try {
+      await _engine?.setEnableSpeakerphone(speaker);
+    } catch (e) {
+      debugPrint('Agora toggleSpeaker error: $e');
+    }
   }
 
   Future<void> toggleVideo(bool enabled) async {
-    await _engine?.muteLocalVideoStream(!enabled);
+    try {
+      await _engine?.muteLocalVideoStream(!enabled);
+    } catch (e) {
+      debugPrint('Agora toggleVideo error: $e');
+    }
   }
 
   Future<void> switchCamera() async {
-    await _engine?.switchCamera();
+    try {
+      await _engine?.switchCamera();
+    } catch (e) {
+      debugPrint('Agora switchCamera error: $e');
+    }
   }
 
   Future<void> dispose() async {
-    await _engine?.release();
+    try {
+      await _engine?.release();
+    } catch (e) {
+      debugPrint('Agora dispose error: $e');
+    }
     _engine = null;
+    _isInitialized = false;
   }
 
   Widget? get localVideoView {

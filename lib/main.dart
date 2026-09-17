@@ -6,6 +6,7 @@ import 'package:alias/firebase_options.dart';
 import 'package:alias/core/config/theme.dart';
 import 'package:alias/core/router/app_router.dart';
 import 'package:alias/services/presence_service.dart';
+import 'package:alias/services/notification_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -23,6 +24,13 @@ void main() async {
     );
   } catch (e) {
     debugPrint('Error initializing Firebase: $e');
+  }
+
+  // Initialize notifications service (cross-platform & Web)
+  try {
+    await NotificationService.instance.initialize();
+  } catch (e) {
+    debugPrint('Error initializing NotificationService: $e');
   }
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

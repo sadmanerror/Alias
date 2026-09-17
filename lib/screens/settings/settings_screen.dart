@@ -272,7 +272,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF8DA399);
-    const backgroundColor = Color(0xFFF7F7F7);
+    const backgroundColor = Color(0xFFF0E8D8);   // warm cream
+    const cardColor = Color(0xFFFFFFFF);
 
     final currentUserId = ref.watch(authStateProvider).value?.uid ?? '';
     final userProfileAsync = ref.watch(userProfileProvider(currentUserId));
@@ -291,10 +292,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             }
           },
         ),
-        title: const Text('Settings'),
+        title: const Text('Settings',
+            style: TextStyle(
+                color: Color(0xFF2C3E35),
+                fontWeight: FontWeight.w700,
+                fontSize: 20)),
         backgroundColor: backgroundColor,
         elevation: 0,
-        foregroundColor: Colors.black87,
+        foregroundColor: const Color(0xFF2C3E35),
       ),
       body: ListView(
         children: [
@@ -318,7 +323,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
-                          color: Colors.white,
+                          color: cardColor,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.edit, size: 16, color: primaryColor),
@@ -353,7 +358,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 0,
-            color: Colors.white,
+            color: cardColor,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -421,7 +426,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 0,
-            color: Colors.white,
+            color: cardColor,
             child: Column(
               children: [
                 SwitchListTile(
@@ -454,7 +459,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 0,
-            color: Colors.white,
+            color: cardColor,
             child: SwitchListTile(
               value: _autoAcceptCalls,
               onChanged: (val) => _updateSetting('autoAcceptCalls', val),
@@ -476,7 +481,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 0,
-            color: Colors.white,
+            color: cardColor,
             child: const Column(
               children: [
                 ListTile(
