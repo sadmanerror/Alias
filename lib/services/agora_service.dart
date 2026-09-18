@@ -16,6 +16,9 @@ class AgoraService {
   Function(int, int, int)? onLocalVideoStats;
   Function(int, ErrorCodeType)? onError;
 
+  String? _currentChannel;
+  bool _isJoined = false;
+
   AgoraService(this.appId);
 
   RtcEngine? get engine => _engine;
@@ -39,6 +42,8 @@ class AgoraService {
         RtcEngineEventHandler(
           onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
             debugPrint('Agora onJoinChannelSuccess: channel=${connection.channelId}, uid=${connection.localUid}');
+            _isJoined = true;
+            _currentChannel = connection.channelId;
           },
           onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
             debugPrint('Agora onUserJoined: remoteUid=$remoteUid');
@@ -52,12 +57,19 @@ class AgoraService {
             debugPrint('Agora onError: $err, msg: $msg');
             onError?.call(0, err);
           },
+          onConnectionStateChanged: (RtcConnection connection, ConnectionStateType state, ConnectionChangedReasonType reason) {
+            debugPrint('Agora connection state: $state, reason: $reason');
+          },
         ),
       );
 
       await _engine!.enableAudio();
       await _engine!.enableLocalAudio(true);
       await _engine!.setDefaultAudioRouteToSpeakerphone(true);
+      await _engine!.setAudioProfile(
+        profile: AudioProfileType.audioProfileDefault,
+        scenario: AudioScenarioType.audioScenarioDefault,
+      );
       _isInitialized = true;
     } catch (e) {
       debugPrint('Agora initialize error: $e');
@@ -110,6 +122,11 @@ class AgoraService {
       }
     }
 
+    if (_isJoined && _currentChannel == channelName) {
+      debugPrint('Agora already joined channel: $channelName');
+      return;
+    }
+
     if (!_isInitialized || _engine == null) {
       await initialize();
     }
@@ -138,6 +155,10 @@ class AgoraService {
           autoSubscribeVideo: withVideo,
         ),
       );
+      await _engine!.adjustRecordingSignalVolume(100);
+      await _engine!.adjustPlaybackSignalVolume(100);
+      await _engine!.muteLocalAudioStream(false);
+      await _engine!.muteAllRemoteAudioStreams(false);
     } catch (e) {
       debugPrint('Agora joinChannel error: $e');
     }
@@ -146,6 +167,8 @@ class AgoraService {
   Future<void> leaveChannel() async {
     try {
       await _engine?.leaveChannel();
+      _isJoined = false;
+      _currentChannel = null;
     } catch (e) {
       debugPrint('Agora leaveChannel error: $e');
     }
@@ -203,13 +226,13 @@ class AgoraService {
     );
   }
 
-  Widget remoteVideoView(int remoteUid) {
+  Widget remoteVideoView(int remoteUid, {String channelId = ''}) {
     if (_engine == null) return const SizedBox.shrink();
     return AgoraVideoView(
       controller: VideoViewController.remote(
         rtcEngine: _engine!,
         canvas: VideoCanvas(uid: remoteUid),
-        connection: const RtcConnection(),
+        connection: RtcConnection(channelId: channelId),
       ),
     );
   }

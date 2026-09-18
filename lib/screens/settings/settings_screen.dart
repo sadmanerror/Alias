@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:alias/models/user_model.dart';
 import 'package:alias/providers/settings_provider.dart';
 import 'package:alias/providers/auth_provider.dart';
@@ -21,11 +22,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _messagePreviewEnabled = true;
   bool _autoAcceptCalls = false;
   String _lastBackupTime = 'Never';
+  String _appVersion = 'v1.2.0';
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() => _appVersion = 'v${info.version}');
+      }
+    } catch (_) {
+      setState(() => _appVersion = 'v1.2.0');
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -482,14 +496,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 0,
             color: cardColor,
-            child: const Column(
+            child: Column(
               children: [
                 ListTile(
-                  title: Text('Version'),
-                  trailing: Text('1.0.0', style: TextStyle(color: Colors.grey)),
+                  title: const Text('Version'),
+                  trailing: Text(
+                    _appVersion.isNotEmpty ? _appVersion : 'v1.2.0',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ),
-                Divider(height: 1),
-                ListTile(
+                const Divider(height: 1),
+                const ListTile(
                   title: Text('Privacy Policy'),
                   trailing: Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
                 ),

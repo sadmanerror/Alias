@@ -135,3 +135,13 @@ final incomingCallProvider = StreamProvider<CallModel?>((ref) {
   if (user == null) return const Stream.empty();
   return ref.watch(firestoreServiceProvider).streamIncomingCalls(user.uid);
 });
+
+final groupCallProvider = StreamProvider.family<Map<String, dynamic>?, String>(
+  (ref, chatId) {
+    return FirebaseFirestore.instance
+        .collection('calls')
+        .doc('${chatId}_group')
+        .snapshots()
+        .map((snap) => snap.exists ? snap.data() : null);
+  },
+);

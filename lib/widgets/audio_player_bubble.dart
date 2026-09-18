@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
@@ -64,14 +65,32 @@ class _AudioPlayerBubbleState extends State<AudioPlayerBubble> {
   }
 
   void _togglePlay() async {
-    if (_isPlaying) {
-      await _audioPlayer.pause();
-    } else {
-      await _audioPlayer.play(UrlSource(widget.audioUrl));
+    try {
+      if (_isPlaying) {
+        await _audioPlayer.pause();
+      } else {
+        final url = widget.audioUrl.trim();
+        if (url.isEmpty) return;
+
+        if (url.startsWith('data:audio')) {
+          final base64Str = url.split(',').last;
+          final bytes = base64Decode(base64Str);
+          await _audioPlayer.play(BytesSource(bytes));
+        } else if (url.startsWith('http://') || url.startsWith('https://')) {
+          await _audioPlayer.play(UrlSource(url));
+        } else {
+          await _audioPlayer.play(DeviceFileSource(url));
+        }
+      }
+      setState(() {
+        _isPlaying = !_isPlaying;
+      });
+    } catch (e) {
+      debugPrint('Audio playback error: $e');
+      if (mounted) {
+        setState(() => _isPlaying = false);
+      }
     }
-    setState(() {
-      _isPlaying = !_isPlaying;
-    });
   }
 
   String _formatDuration(Duration d) {

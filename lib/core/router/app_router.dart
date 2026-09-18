@@ -12,6 +12,7 @@ import '../../screens/settings/settings_screen.dart';
 import '../../screens/chat/gif_picker_screen.dart';
 import '../../screens/call/incoming_call_screen.dart';
 import '../../screens/call/active_call_screen.dart';
+import '../../screens/call/group_call_screen.dart';
 
 class RoutePaths {
   static const splash = '/splash';
@@ -23,6 +24,7 @@ class RoutePaths {
   static const gifPicker = '/gif-picker/:chatId';
   static const incomingCall = '/incoming-call/:callId';
   static const activeCall = '/active-call/:callId';
+  static const groupCall = '/group-call/:chatId';
 }
 
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -77,6 +79,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final callId = state.pathParameters['callId']!;
           return ActiveCallScreen(callId: callId);
+        },
+      ),
+      GoRoute(
+        path: RoutePaths.groupCall,
+        builder: (context, state) {
+          final chatId = state.pathParameters['chatId']!;
+          final groupName = state.uri.queryParameters['name'] ?? 'Group Call';
+          return GroupCallScreen(chatId: chatId, groupName: groupName);
         },
       ),
     ],

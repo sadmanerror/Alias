@@ -75,12 +75,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: v1.1.0
-          name: "Alias v1.1.0"
+          tag_name: v1.2.0
+          name: "Alias v1.2.0"
           draft: false
           prerelease: false
           body: |
-            ### 📱 Alias Android Release APK & iOS Web App
+            ### 📱 Alias v1.2.0 Android Release APK & iOS Web App
 
             #### 📲 Android Download:
             - **[`Alias-arm64-v8a.apk`](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-arm64-v8a.apk)** (~30MB — Modern Android phones)

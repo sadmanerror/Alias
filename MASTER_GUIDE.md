@@ -288,7 +288,42 @@ Implemented in `GiphyService` and `GifPickerScreen`:
 
 ---
 
-## 6. CI/CD & Cloud Automation (GitHub Actions v1.1.0)
+### Bug 13: Voice Message Playback Fails on Base64 Data URIs & Zero Duration
+- **Symptom**: Voice messages recorded in chats failed to play back on recipient devices, or displayed a duration of 0:00.
+- **Root Cause**: When cloud upload falls back to Base64 data URIs (`data:audio/m4a;base64,...`), `AudioPlayer.play(UrlSource(...))` throws an exception because `UrlSource` only accepts valid HTTP/HTTPS URLs. Furthermore, the duration was not measured during recording.
+- **Solution**: Added a high-resolution `Stopwatch` in `ChatScreen` that measures exact elapsed recording seconds and passes it to `MessageModel.duration`. Enhanced `AudioPlayerBubble` to inspect the URI prefix: Base64 data URIs are decoded and played via `BytesSource(bytes)`, HTTP URLs via `UrlSource`, and local paths via `DeviceFileSource`.
+
+---
+
+### Bug 14: Agora Voice Transmission Muted & Channel Join Collision
+- **Symptom**: Call connects but voice transmission does not work or audio cannot be heard between caller and callee.
+- **Root Cause**: Agora RTC engine was initialized without explicit communication audio scenarios (`audioProfileDefault` & `audioScenarioDefault`), and `joinChannel` was being invoked concurrently from both `CallNotifier` and `ActiveCallScreen`, causing Agora ERR_JOIN_CHANNEL_REJECTED (-17).
+- **Solution**: Added `_isJoined` state and `_currentChannel` deduplication in `AgoraService.joinChannel()`. Added `adjustRecordingSignalVolume(100)`, `adjustPlaybackSignalVolume(100)`, and unmuted local/remote audio streams upon successful join.
+
+---
+
+### Bug 15: Chat List Profile Photos Missing in Chat Heads
+- **Symptom**: Inside the chat screen the partner's avatar showed properly, but on the home screen chat list ("chat head") the avatar remained empty or displayed initials.
+- **Root Cause**: `ChatTile` only listened to `userProfileProvider` (a real-time Firestore stream) which initially returns null while establishing the websocket snapshot listener.
+- **Solution**: Implemented a dual-resolution strategy with `userProfileFutureProvider` using `getUserById` direct document fetch alongside `userProfileProvider`, so photos render immediately from cache and update live on changes.
+
+---
+
+### Bug 16: Android Hardware Back Button Closes App From Chat Screen
+- **Symptom**: Pressing the physical/system back button while inside a conversation immediately minimized or exited the app instead of returning to the home screen.
+- **Root Cause**: Flutter 3.22+ deprecated `WillPopScope` in favor of `PopScope`. Without an explicit `PopScope` on `ChatScreen`, Android pop events bubbled to the root navigator and closed the activity.
+- **Solution**: Wrapped `ChatScreen`'s Scaffold with `PopScope(canPop: false, onPopInvokedWithResult: (didPop, result) { if (!didPop) { if (context.canPop()) context.pop(); else context.go('/home'); } })`.
+
+---
+
+### Bug 17: Android Launcher Icon Outdated Across Mipmap Densities
+- **Symptom**: The web PWA showed the new speech bubble logo, but the installed Android APK retained the default Flutter logo.
+- **Root Cause**: The mipmap PNG assets (`mipmap-hdpi`, `mipmap-xhdpi`, etc.) in `android/app/src/main/res/` had not been regenerated with the new branding.
+- **Solution**: Configured `flutter_launcher_icons.yaml` targeting `assets/images/logo.png` with adaptive cream background `#F0E8D8`, and executed `flutter pub run flutter_launcher_icons` to overwrite all density buckets.
+
+---
+
+## 6. CI/CD & Cloud Automation (GitHub Actions v1.2.0)
 
 The workflow file [`.github/workflows/build_apk.yml`](file:///D:/alias/.github/workflows/build_apk.yml) automates the entire release cycle:
 

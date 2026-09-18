@@ -39,6 +39,7 @@ class UserAvatar extends StatelessWidget {
       radius: size / 2,
       backgroundColor: const Color(0xFF8DA399),
       backgroundImage: imageProvider,
+      onBackgroundImageError: imageProvider != null ? (_, __) {} : null,
       child: (imageProvider == null)
           ? Text(
               username.isNotEmpty ? username[0].toUpperCase() : '?',

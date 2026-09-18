@@ -15,9 +15,22 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
+  /// The chatId of the screen the user is currently viewing.
+  /// Notifications for this chat are suppressed (WhatsApp-style).
+  String? _activeChatId;
+
   static const String _channelCallsId = 'alias_calls_channel';
   static const String _channelMessagesId = 'alias_messages_channel';
   static const int callNotificationId = 9991;
+
+  // ── Active chat tracking ──────────────────────────────────────────────────
+
+  /// Call from ChatScreen.initState to suppress notifications for this chat.
+  void setActiveChatId(String? chatId) {
+    _activeChatId = chatId;
+  }
+
+  // ── Initialization ────────────────────────────────────────────────────────
 
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -71,11 +84,31 @@ class NotificationService {
         );
       }
 
+      // Wire FCM foreground messages so they show as local notifications
+      FirebaseMessaging.onMessage.listen(_handleFcmMessage);
+
       _isInitialized = true;
     } catch (e) {
       debugPrint('NotificationService init error: $e');
     }
   }
+
+  void _handleFcmMessage(RemoteMessage message) {
+    final chatId = message.data['chatId'] as String?;
+    // Suppress if user is currently in this chat
+    if (chatId != null && chatId == _activeChatId) return;
+
+    final title = message.notification?.title ?? message.data['senderName'] ?? 'New Message';
+    final body = message.notification?.body ?? message.data['message'] ?? '';
+
+    showMessageNotification(
+      senderName: title,
+      messageText: body,
+      chatId: chatId ?? 'fcm',
+    );
+  }
+
+  // ── Permission Primer ─────────────────────────────────────────────────────
 
   /// Check and prompt the user for notification permissions on initial app launch.
   Future<void> promptPermissionIfNeeded(BuildContext context) async {
@@ -235,6 +268,8 @@ class NotificationService {
     }
   }
 
+  // ── Call Notification ─────────────────────────────────────────────────────
+
   /// Show a phone notification for an incoming call.
   Future<void> showCallNotification({
     required String callerName,
@@ -300,12 +335,18 @@ class NotificationService {
     } catch (_) {}
   }
 
+  // ── Message Notification ──────────────────────────────────────────────────
+
   /// Show a phone notification for a new message.
+  /// Suppressed automatically when user is viewing that chat.
   Future<void> showMessageNotification({
     required String senderName,
     required String messageText,
     required String chatId,
   }) async {
+    // WhatsApp-style: suppress when inside the chat
+    if (_activeChatId == chatId) return;
+
     // 1. Web Notification
     if (kIsWeb) {
       showWebNotification(senderName, messageText, tag: 'chat_$chatId');

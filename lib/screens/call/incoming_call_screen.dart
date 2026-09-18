@@ -96,10 +96,13 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
         });
       }
 
-      // Play ringtone
-      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-      // Assuming you have an asset named 'ringtone.mp3' in your assets folder
-      // await _audioPlayer.play(AssetSource('audio/ringtone.mp3'));
+      // Play ringtone for incoming call
+      try {
+        await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+        await _audioPlayer.play(AssetSource('audio/iphone_ringtone.mp3'));
+      } catch (e) {
+        debugPrint('IncomingCallScreen ringtone error: $e');
+      }
 
       // Auto dismiss after 60 seconds
       _autoDismissTimer = Timer(const Duration(seconds: 60), () {

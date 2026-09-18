@@ -1,28 +1,33 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:alias/models/message_model.dart';
+import 'package:alias/providers/chat_provider.dart';
 import 'audio_player_bubble.dart';
 import 'gif_bubble.dart';
 
-class ChatBubble extends StatefulWidget {
+class ChatBubble extends ConsumerStatefulWidget {
   final MessageModel message;
   final bool isSender;
   final String? partnerPhotoUrl;
+  final String chatId;
 
   const ChatBubble({
     super.key,
     required this.message,
     required this.isSender,
+    required this.chatId,
     this.partnerPhotoUrl,
   });
 
   @override
-  State<ChatBubble> createState() => _ChatBubbleState();
+  ConsumerState<ChatBubble> createState() => _ChatBubbleState();
 }
 
-class _ChatBubbleState extends State<ChatBubble> {
+class _ChatBubbleState extends ConsumerState<ChatBubble> {
   bool _showDetails = false;
 
   String _formatTime(DateTime? dt) {
@@ -188,10 +193,11 @@ class _ChatBubbleState extends State<ChatBubble> {
         );
       case MessageType.image:
         final mediaUrl = message.mediaUrl ?? '';
+        Widget imageWidget;
         if (mediaUrl.startsWith('data:image')) {
           try {
             final base64Str = mediaUrl.split(',').last;
-            return ClipRRect(
+            imageWidget = ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Image.memory(
                 base64Decode(base64Str),
@@ -199,20 +205,48 @@ class _ChatBubbleState extends State<ChatBubble> {
                 errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
               ),
             );
-          } catch (_) {}
-        }
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: CachedNetworkImage(
-            imageUrl: mediaUrl,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => const SizedBox(
-              width: 200,
-              height: 200,
-              child: Center(child: CircularProgressIndicator()),
+          } catch (_) {
+            imageWidget = const Icon(Icons.broken_image);
+          }
+        } else {
+          imageWidget = ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: CachedNetworkImage(
+              imageUrl: mediaUrl,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const SizedBox(
+                width: 200,
+                height: 200,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) => const Icon(Icons.broken_image),
             ),
-            errorWidget: (context, url, error) => const Icon(Icons.broken_image),
-          ),
+          );
+        }
+        return Stack(
+          children: [
+            imageWidget,
+            if (isSender)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: GestureDetector(
+                  onTap: () => _showContextMenu(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.black45,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.more_vert,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       case MessageType.video:
         return Stack(
@@ -233,6 +267,26 @@ class _ChatBubbleState extends State<ChatBubble> {
               ),
             ),
             const Icon(Icons.play_circle_fill, size: 50, color: Colors.white),
+            if (isSender)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: GestureDetector(
+                  onTap: () => _showContextMenu(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.black45,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.more_vert,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       case MessageType.audio:
@@ -283,37 +337,103 @@ class _ChatBubbleState extends State<ChatBubble> {
   }
 
   void _showContextMenu(BuildContext context) {
+    final message = widget.message;
+    final isSender = widget.isSender;
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (context) {
+      builder: (ctx) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Drag handle
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Message Info
               ListTile(
                 leading: const Icon(Icons.info_outline, color: Color(0xFF8DA399)),
                 title: const Text('Message Info'),
                 subtitle: const Text('View sent, delivered, and seen timestamps'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(ctx);
                   _showMessageInfoDialog(context);
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.copy),
-                title: const Text('Copy'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Delete', style: TextStyle(color: Colors.red)),
-                onTap: () => Navigator.pop(context),
-              ),
+              // Copy — only for text messages
+              if (message.type == MessageType.text && message.content != null)
+                ListTile(
+                  leading: const Icon(Icons.copy),
+                  title: const Text('Copy'),
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: message.content!));
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Copied to clipboard')),
+                    );
+                  },
+                ),
+              // Unsend — sender only, any message type
+              if (isSender)
+                ListTile(
+                  leading: const Icon(Icons.undo_rounded, color: Colors.orange),
+                  title: const Text('Unsend', style: TextStyle(color: Colors.orange)),
+                  subtitle: const Text('Remove this message for everyone'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _confirmUnsend(context);
+                  },
+                ),
+              const SizedBox(height: 4),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _confirmUnsend(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unsend Message'),
+        content: const Text('This message will be removed for everyone in the chat.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final messageId = widget.message.messageId;
+              if (messageId.isEmpty) return;
+              try {
+                await ref.read(firestoreServiceProvider).deleteMessage(
+                  widget.chatId,
+                  messageId,
+                );
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to unsend: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Unsend'),
+          ),
+        ],
+      ),
     );
   }
 

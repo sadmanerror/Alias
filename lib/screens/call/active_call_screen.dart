@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:alias/models/call_model.dart';
 import 'package:alias/models/user_model.dart';
 import 'package:alias/providers/call_provider.dart';
@@ -34,12 +35,35 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
   int _elapsedSeconds = 0;
   StreamSubscription<DocumentSnapshot>? _callSubscription;
 
-  Offset _pipPosition = const Offset(16, 100); // Initial PiP position
+  Offset _pipPosition = const Offset(16, 100);
+
+  // ── Ringtone ──────────────────────────────────────────────────────────────
+  final AudioPlayer _ringtonePlayer = AudioPlayer();
+  bool _isRinging = false;
 
   @override
   void initState() {
     super.initState();
     _initCallData();
+  }
+
+  Future<void> _startRingtone() async {
+    if (_isRinging) return;
+    _isRinging = true;
+    try {
+      await _ringtonePlayer.setReleaseMode(ReleaseMode.loop);
+      await _ringtonePlayer.play(AssetSource('audio/iphone_ringtone.mp3'));
+    } catch (e) {
+      debugPrint('Ringtone play error: $e');
+    }
+  }
+
+  Future<void> _stopRingtone() async {
+    if (!_isRinging) return;
+    _isRinging = false;
+    try {
+      await _ringtonePlayer.stop();
+    } catch (_) {}
   }
 
   Future<void> _initCallData() async {
@@ -61,6 +85,12 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
       final currentUserId = ref.read(authStateProvider).value?.uid;
       final remoteUserId = call.callerId == currentUserId ? call.calleeId : call.callerId;
 
+      // Check if we are the callee and call is still ringing → play ringtone
+      final isCallee = call.calleeId == currentUserId;
+      if (isCallee && call.status == CallStatus.ringing) {
+        _startRingtone();
+      }
+
       final userSnapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(remoteUserId)
@@ -78,6 +108,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
 
       // Start timer if already active
       if (call.status == CallStatus.active && _callTimer == null) {
+        _stopRingtone();
         _startCallTimer();
       }
 
@@ -88,6 +119,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
           .snapshots()
           .listen((snapshot) {
         if (!snapshot.exists) {
+          _stopRingtone();
           _endCallAndPop('Call ended.');
           return;
         }
@@ -95,11 +127,14 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
         if (data != null) {
           final updated = CallModel.fromJson(data, snapshot.id);
           if (updated.status == CallStatus.declined) {
+            _stopRingtone();
             _endCallAndPop('Call was declined');
           } else if (updated.status == CallStatus.ended ||
               updated.status == CallStatus.missed) {
+            _stopRingtone();
             _endCallAndPop('Call ended');
           } else if (updated.status == CallStatus.active) {
+            _stopRingtone();
             if (mounted && _callTimer == null) {
               _startCallTimer();
             }
@@ -111,6 +146,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
       final agora = ref.read(agoraServiceProvider);
       agora.onUserJoined = (uid) {
         debugPrint('Agora remote user joined: $uid');
+        _stopRingtone();
         if (mounted) {
           setState(() {
             _remoteUid = uid;
@@ -168,8 +204,8 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
   }
 
   Future<void> _endCall() async {
+    _stopRingtone();
     try {
-      // Mark as ended in Firestore directly so the other party exits immediately
       await ref.read(firestoreServiceProvider).updateCallStatus(widget.callId, 'ended');
       await ref.read(callNotifierProvider.notifier).endCall();
     } catch (e) {
@@ -180,6 +216,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
   }
   
   void _endCallAndPop(String message) {
+    _stopRingtone();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -224,6 +261,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
   void dispose() {
     _callSubscription?.cancel();
     _callTimer?.cancel();
+    _ringtonePlayer.dispose();
     super.dispose();
   }
 
@@ -321,7 +359,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
       children: [
         // Remote Video View
         if (_remoteUid != null && agora.isInitialized)
-          Positioned.fill(child: agora.remoteVideoView(_remoteUid!))
+          Positioned.fill(child: agora.remoteVideoView(_remoteUid!, channelId: _call?.channelName ?? ''))
         else
           Center(
             child: Column(
@@ -356,7 +394,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _remoteUid != null ? 'Connected' : 'Waiting for video...',
+                  _remoteUid != null ? 'Connected' : (_isRinging ? 'Ringing...' : 'Waiting for video...'),
                   style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
@@ -442,7 +480,9 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
             const SizedBox(height: 8),
             // Status text
             Text(
-              isConnected ? 'Connected' : 'Calling...',
+              isConnected
+                  ? 'Connected'
+                  : (_isRinging ? 'Ringing...' : 'Calling...'),
               style: TextStyle(
                 fontSize: 16,
                 color: isConnected ? const Color(0xFF8DA399) : Colors.white54,

@@ -68,55 +68,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final incomingCall = ref.watch(incomingCallProvider).value;
     final currentUser = ref.watch(authStateProvider).value;
 
-    // Listen for incoming ringing calls to trigger phone notifications
-    ref.listen<AsyncValue<CallModel?>>(incomingCallProvider, (previous, next) {
-      final call = next.value;
-      if (call != null && call.status == CallStatus.ringing) {
-        NotificationService.instance.showCallNotification(
-          callerName: call.callerName ?? 'Someone',
-          callId: call.callId,
-          isVideo: call.type == CallType.video,
-        );
-      } else {
-        NotificationService.instance.cancelCallNotification();
-      }
-    });
-
-    // Listen for incoming messages to trigger phone notifications
+    // Ensure all incoming messages are marked delivered
     ref.listen<AsyncValue<List<ChatModel>>>(userChatsProvider, (previous, next) {
       if (next.hasValue && next.value != null) {
         _markAllChatsAsDelivered();
-
-        if (previous?.hasValue == true && previous?.value != null) {
-          final currentUserId = currentUser?.uid ?? '';
-          final prevChats = {for (final c in previous!.value!) c.chatId: c};
-
-          for (final chat in next.value!) {
-            if (chat.isMutedFor(currentUserId)) continue;
-
-            final prev = prevChats[chat.chatId];
-            final isNewMessage = chat.lastMessage != null &&
-                chat.lastMessageSenderId != null &&
-                chat.lastMessageSenderId != currentUserId &&
-                chat.unreadCount > 0 &&
-                (prev == null ||
-                    prev.lastMessageTime != chat.lastMessageTime ||
-                    prev.lastMessage != chat.lastMessage);
-
-            if (isNewMessage) {
-              final partnerId = chat.getOtherParticipantId(currentUserId);
-              final senderTitle = chat.isGroup
-                  ? (chat.groupName ?? 'Group')
-                  : chat.displayName('New Message', partnerId);
-
-              NotificationService.instance.showMessageNotification(
-                senderName: senderTitle,
-                messageText: chat.lastMessage!,
-                chatId: chat.chatId,
-              );
-            }
-          }
-        }
       }
     });
 
@@ -126,6 +81,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: Column(
         children: [
           if (incomingCall != null) _buildIncomingCallBanner(incomingCall),
+          // Active Group Call Banners
+          for (final group in chatsAsyncValue.value?.where((c) => c.isGroup) ?? <ChatModel>[])
+            _ActiveGroupCallBanner(
+              group: group,
+              currentUserId: currentUser?.uid ?? '',
+            ),
           // ── Inline Search Bar ──────────────────────────────────────────
           _buildSearchBar(),
           // ── Chat List ─────────────────────────────────────────────────
@@ -1032,8 +993,9 @@ class ChatTile extends ConsumerWidget {
 
   Widget _buildDMTile(BuildContext context, WidgetRef ref) {
     final partnerId = chat.getOtherParticipantId(currentUserId);
-    final partnerAsync = ref.watch(userProfileProvider(partnerId));
-    final partner = partnerAsync.value;
+    final livePartner = ref.watch(userProfileProvider(partnerId)).value;
+    final cachedPartner = ref.watch(userProfileFutureProvider(partnerId)).value;
+    final partner = livePartner ?? cachedPartner;
     final rawUsername = partner != null && partner.username.isNotEmpty
         ? partner.username
         : (partnerId.isNotEmpty ? partnerId : 'Chat');
@@ -1314,6 +1276,105 @@ class _ShimmerTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kParchment,
         borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}
+
+// ─── Active Group Call Banner ────────────────────────────────────────────────
+
+class _ActiveGroupCallBanner extends ConsumerWidget {
+  final ChatModel group;
+  final String currentUserId;
+
+  const _ActiveGroupCallBanner({
+    required this.group,
+    required this.currentUserId,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final callAsync = ref.watch(groupCallProvider(group.chatId));
+    final callData = callAsync.value;
+    if (callData == null || callData['status'] != 'active') {
+      return const SizedBox.shrink();
+    }
+
+    final participants = List<String>.from(callData['participants'] ?? []);
+    final isInCall = participants.contains(currentUserId);
+    final groupName = group.groupName ?? 'Group';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: _kDarkText,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.25),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.group, color: Colors.greenAccent, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$groupName Call',
+                  style: const TextStyle(
+                    color: _kWhite,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  isInCall
+                      ? 'You are in this call (${participants.length} connected)'
+                      : '${participants.length} member(s) talking',
+                  style: TextStyle(
+                    color: _kWhite.withValues(alpha: 0.7),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isInCall ? _kSage : const Color(0xFF4CAF50),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              NotificationService.instance.cancelCallNotification();
+              context.push(
+                '/group-call/${group.chatId}?name=${Uri.encodeComponent(groupName)}',
+              );
+            },
+            child: Text(isInCall ? 'Return' : 'Join Call',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          ),
+        ],
       ),
     );
   }

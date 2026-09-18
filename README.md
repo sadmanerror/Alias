@@ -3,14 +3,14 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android_%7C_iOS_%7C_Web-green.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/Flutter-3.x-blue.svg" alt="Flutter" />
-  <img src="https://img.shields.io/badge/Release-v1.1.0-sage.svg" alt="Release" />
+  <img src="https://img.shields.io/badge/Release-v1.2.0-sage.svg" alt="Release" />
   <img src="https://img.shields.io/badge/Android%20APK-~30MB-brightgreen.svg" alt="APK Size" />
   <img src="https://img.shields.io/badge/License-MIT-orange.svg" alt="License" />
 </p>
 
 <p align="center">
   <a href="https://github.com/sadmanerror/Alias/releases/latest/download/Alias-arm64-v8a.apk">
-    <img src="https://img.shields.io/badge/🤖_Download_Android_APK-v1.1.0-2ea44f?style=for-the-badge&logo=android&logoColor=white" height="42" alt="Download APK" />
+    <img src="https://img.shields.io/badge/🤖_Download_Android_APK-v1.2.0-2ea44f?style=for-the-badge&logo=android&logoColor=white" height="42" alt="Download APK" />
   </a>
   <a href="https://sadmanerror.github.io/Alias/">
     <img src="https://img.shields.io/badge/🍎_Open_on_iOS_&_Web-Live_App-000000?style=for-the-badge&logo=apple&logoColor=white" height="42" alt="iOS Web App" />
@@ -36,7 +36,7 @@
 | **`Alias-armeabi-v7a.apk`** | **~25MB** | Older 32-bit Android Phones | [📥 Download](https://github.com/sadmanerror/Alias/releases/latest/download/Alias-armeabi-v7a.apk) |
 | **`Alias.apk`** | **~30MB** | Universal Link (Arm64 Optimized) | [📥 Download](https://github.com/sadmanerror/Alias/releases/latest/download/Alias.apk) |
 
-> 💡 **App Size Guarantee**: Thanks to architecture-split compilation (`--split-per-abi`) and NDK ABI filtering, the downloaded APK is only **~25MB to 30MB** (far below standard 100MB+ fat packages).
+> 💡 **App Size Guarantee**: Thanks to architecture-split compilation (`--split-per-abi`), the downloaded APK is only **~25MB to 30MB** (far below standard 100MB+ fat packages).
 
 #### How to install on Android:
 1. Tap the **Download** link above directly from your Android phone.
@@ -58,32 +58,34 @@ Because Apple restricts direct `.apk` installations, iOS users can install **Ali
 
 ---
 
-## ✨ Key Features (v1.1.0)
+## ✨ What's New in v1.2.0
 
-- 🎨 **Brand Identity & Modern Logo**: Custom high-resolution speech bubble "A" branding on splash screens, app headers, and PWA icons.
-- 🔔 **Phone Notifications System**:
-  - In-app permission primer bottom sheet before native system prompts.
-  - Ongoing heads-up notification for incoming audio & video calls (auto-dismisses on answer/reject).
-  - High-priority system alerts for incoming chat messages.
-- 📹 **Live Audio & Video Calls (Agora RTC)**:
-  - Real-time low-latency voice and video transmission.
-  - In-call controls: Mute/Unmute microphone, End call, Camera flip, Call duration timer.
-- 👤 **Direct Message (DM) User Settings**:
-  - Tap partner avatar/name to open custom settings sheet.
-  - **Set Custom Nicknames** (persists in Firestore, shows across chat header and home list).
-  - **Mute / Unmute** notifications per-user with mute icon indicator.
-  - **Copy @username** with one tap.
-  - **Clear Chat History** with permanent deletion confirmation.
-- 👥 **Group Chat Management**:
-  - Group settings sheet for editing group name and photo.
-  - Add members by username prefix search.
-  - Remove / kick members (with admin confirmation).
-- 🎭 **GIF Library (Giphy & Curated)**:
-  - Integrated Giphy API for searching millions of GIFs.
-  - Curated fallback reaction library so the picker always works instantly.
-- ⚡ **Instant Messaging & Presence**: Real-time 1-on-1 private chat with instant delivery and read indicators.
-- 🎙️ **Voice Messaging**: Audio recording with interactive waveform playback.
-- 🔒 **Private & Secure**: Firestore security rules and encrypted communication channels.
+### 🚀 New Features:
+- 👥 **Group Voice Calls**:
+  - Live low-latency Agora multi-participant audio conference rooms.
+  - Interactive participant grid displaying live connections, mute statuses, and speak indicators.
+  - In-app group call notification and sticky persistent top banner allowing users to join, return, or leave smoothly.
+- 🖼️ **Messenger-Style Media Preview Before Sending**:
+  - Full-screen media preview sheet when selecting photos or videos.
+  - Add captions, zoom/pinch to inspect, play/pause video before confirming.
+  - Cancel option prevents accidental sends on misclicks.
+- 🗑️ **Photo & Message Unsend**:
+  - Sender 3-dot overlay button on sent photos and videos (plus long-press context menu).
+  - Permanent "Unsend" removes the media for everyone in the conversation.
+- 🎵 **iPhone Ringtone for Incoming Calls**:
+  - Authentic looped ringtone plays on incoming calls (callee side only) and stops immediately when accepted, declined, or dismissed.
+
+### 🐛 Bug Fixes & Refinements:
+- 🎙️ **Voice Messages Fixed**: Accurate recording duration tracking via stopwatch, permission verification, and robust multi-source playback (supporting Base64 data URIs, HTTP URLs, and device storage).
+- 🔊 **In-Call Voice Transmission Fixed**: Agora RTC audio profiling (`audioProfileDefault`, `audioScenarioDefault`), recording/playback volume boost (100%), and channel deduplication preventing join collision errors.
+- 🔔 **WhatsApp-Style Notifications**:
+  - Root-level global message & call listener (`RootNotificationHandler`).
+  - Notification panel displays the sender's actual username and message snippet.
+  - Silent in-chat suppression (messages inside active chat don't generate popups).
+- 🖼️ **Chat List Profile Photos**: Stream and future dual-source resolution in `ChatTile` guarantees profile photos display in chat heads.
+- 📱 **Android System Back Button**: Full `PopScope` integration ensures pressing the hardware back button inside a chat navigates smoothly back to the home screen instead of exiting the app.
+- 🎨 **Android Launcher Icon**: Replaced default Flutter icon with the new Alias branded logo across all Android mipmap resolutions.
+- ℹ️ **Dynamic Version Display**: Settings "About" screen automatically reads live package info (`v1.2.0`).
 
 ---
 

@@ -41,6 +41,11 @@ final userProfileProvider = StreamProvider.family<UserModel?, String>((ref, uid)
   return ref.watch(firestoreServiceProvider).streamUser(uid);
 });
 
+final userProfileFutureProvider = FutureProvider.family<UserModel?, String>((ref, uid) async {
+  if (uid.isEmpty) return null;
+  return ref.read(firestoreServiceProvider).getUserById(uid);
+});
+
 final chatPartnerProvider = FutureProvider.family<UserModel?, String>((ref, chatId) async {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return null;
@@ -97,7 +102,7 @@ class MessageNotifier {
     await ref.read(firestoreServiceProvider).sendMessage(chatId, msg);
   }
 
-  Future<void> sendMediaMessage(File file, MessageType type) async {
+  Future<void> sendMediaMessage(File file, MessageType type, {String? caption}) async {
     final user = ref.read(authStateProvider).value;
     if (user == null) return;
 
@@ -119,6 +124,7 @@ class MessageNotifier {
       receiverId: partnerId,
       type: type,
       mediaUrl: url,
+      content: caption,
       timestamp: now,
       isRead: false,
       isDelivered: isOnline,
