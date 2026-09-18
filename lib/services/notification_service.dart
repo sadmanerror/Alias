@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:alias/services/notification_helper_stub.dart'
     if (dart.library.html) 'package:alias/services/notification_helper_web.dart';
@@ -10,6 +13,9 @@ import 'package:alias/services/notification_helper_stub.dart'
 class NotificationService {
   static final NotificationService instance = NotificationService._internal();
   NotificationService._internal();
+
+  static final StreamController<String> selectNotificationStream =
+      StreamController<String>.broadcast();
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -54,6 +60,16 @@ class NotificationService {
         initSettings,
         onDidReceiveNotificationResponse: (details) {
           debugPrint('Notification clicked: ${details.payload}');
+          final payload = details.payload;
+          if (payload != null) {
+            if (payload.startsWith('call:')) {
+              final callId = payload.substring(5);
+              selectNotificationStream.add('/incoming-call/$callId');
+            } else if (payload.startsWith('chat:')) {
+              final chatId = payload.substring(5);
+              selectNotificationStream.add('/chat/$chatId');
+            }
+          }
         },
       );
 
@@ -87,9 +103,38 @@ class NotificationService {
       // Wire FCM foreground messages so they show as local notifications
       FirebaseMessaging.onMessage.listen(_handleFcmMessage);
 
+      // Register and maintain FCM token for background delivery
+      _registerFcmToken();
+
       _isInitialized = true;
     } catch (e) {
       debugPrint('NotificationService init error: $e');
+    }
+  }
+
+  Future<void> _registerFcmToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null && uid.isNotEmpty) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .update({'fcmToken': token});
+        }
+      }
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null && uid.isNotEmpty) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .update({'fcmToken': newToken});
+        }
+      });
+    } catch (e) {
+      debugPrint('FCM token registration error: $e');
     }
   }
 
@@ -227,6 +272,133 @@ class NotificationService {
     );
   }
 
+  /// Check and prompt the user for phone call permissions (Microphone & Camera) on launch.
+  Future<void> promptCallPermissionsIfNeeded(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasPrompted = prefs.getBool('has_prompted_call_permissions') ?? false;
+    if (hasPrompted) return;
+
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFFF0E8D8),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD4C8B2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8DA399).withValues(alpha: 0.25),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.phone_in_talk_rounded,
+                  color: Color(0xFF2C3E35),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Enable Call Permissions',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF2C3E35),
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Allow microphone and camera access to make and receive voice and video calls with clear sound and no interruptions.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF6B7C74),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF6B7C74),
+                        side: const BorderSide(color: Color(0xFFD4C8B2)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () {
+                        prefs.setBool('has_prompted_call_permissions', true);
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Maybe Later'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8DA399),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () async {
+                        prefs.setBool('has_prompted_call_permissions', true);
+                        Navigator.pop(ctx);
+                        await requestCallPermissions();
+                      },
+                      child: const Text(
+                        'Enable Calls',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Request microphone and camera permissions for calls
+  Future<bool> requestCallPermissions() async {
+    try {
+      if (kIsWeb) return true;
+      final mic = await Permission.microphone.request();
+      final cam = await Permission.camera.request();
+      return mic.isGranted && cam.isGranted;
+    } catch (e) {
+      debugPrint('Error requesting call permissions: $e');
+      return false;
+    }
+  }
+
   /// Triggers system notification permission requests across platforms.
   Future<bool> requestPermissions() async {
     try {
@@ -286,6 +458,8 @@ class NotificationService {
     }
 
     // 2. Native Mobile Notification
+    if (!_isInitialized) await initialize();
+
     const androidDetails = AndroidNotificationDetails(
       _channelCallsId,
       'Incoming Calls',
@@ -370,6 +544,8 @@ class NotificationService {
       presentBadge: true,
     );
 
+    if (!_isInitialized) await initialize();
+
     final details = NotificationDetails(
       android: androidDetails,
       iOS: darwinDetails,
@@ -386,6 +562,41 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('Error showing message notification: $e');
+    }
+  }
+
+  /// Handles incoming FCM messages received when the app is in the background or killed.
+  static Future<void> handleBackgroundMessage(RemoteMessage message) async {
+    debugPrint('Handling background FCM message: ${message.messageId}, data=${message.data}');
+    final data = message.data;
+    final type = data['type'] as String?;
+
+    if (type == 'call_invite' || data['callId'] != null) {
+      final callerName = (data['callerName'] as String?) ?? 'Someone';
+      final callId = (data['callId'] ?? '') as String;
+      final isVideo = (data['callType'] ?? '') == 'video';
+      if (callId.isNotEmpty) {
+        await instance.showCallNotification(
+          callerName: callerName,
+          callId: callId,
+          isVideo: isVideo,
+        );
+      }
+    } else if (type == 'call_ended') {
+      await instance.cancelCallNotification();
+    } else if (type == 'new_message' || data['chatId'] != null) {
+      final senderName = message.notification?.title ??
+          (data['senderName'] as String?) ??
+          'New Message';
+      final messageText = message.notification?.body ??
+          (data['message'] as String?) ??
+          '';
+      final chatId = (data['chatId'] ?? 'fcm') as String;
+      await instance.showMessageNotification(
+        senderName: senderName,
+        messageText: messageText,
+        chatId: chatId,
+      );
     }
   }
 }

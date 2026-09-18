@@ -7,6 +7,9 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:alias/models/call_model.dart';
 import 'package:alias/models/user_model.dart';
 import 'package:alias/providers/call_provider.dart';
+import 'package:alias/widgets/user_avatar.dart';
+import 'package:alias/services/notification_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class IncomingCallScreen extends ConsumerStatefulWidget {
   final String callId;
@@ -99,7 +102,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
       // Play ringtone for incoming call
       try {
         await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-        await _audioPlayer.play(AssetSource('audio/iphone_ringtone.mp3'));
+        await _audioPlayer.play(AssetSource('audio/nokia_3310_ringtone.mp3'));
       } catch (e) {
         debugPrint('IncomingCallScreen ringtone error: $e');
       }
@@ -134,12 +137,30 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
 
   void _stopRingtone() {
     _audioPlayer.stop();
+    _audioPlayer.release();
   }
 
   Future<void> _acceptCall() async {
     if (_call == null) return;
+
+    final mic = await Permission.microphone.request();
+    if (!mic.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Microphone permission is required to answer the call'),
+          ),
+        );
+      }
+      return;
+    }
+    if (_call!.type == CallType.video) {
+      await Permission.camera.request();
+    }
+
     _stopRingtone();
     _autoDismissTimer?.cancel();
+    await NotificationService.instance.cancelCallNotification();
     
     try {
       await ref.read(callNotifierProvider.notifier).acceptCall(_call!);
@@ -159,6 +180,7 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
     if (_call == null) return;
     _stopRingtone();
     _autoDismissTimer?.cancel();
+    await NotificationService.instance.cancelCallNotification();
     
     try {
       await ref.read(callNotifierProvider.notifier).declineCall(_call!);
@@ -243,21 +265,10 @@ class _IncomingCallScreenState extends ConsumerState<IncomingCallScreen>
                       );
                     },
                   ),
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: const Color(0xFF8DA399),
-                    backgroundImage: (_caller?.photoUrl != null && _caller!.photoUrl!.isNotEmpty)
-                        ? NetworkImage(_caller!.photoUrl!)
-                        : null,
-                    child: (_caller?.photoUrl == null || _caller!.photoUrl!.isEmpty)
-                        ? Text(
-                            _caller != null && _caller!.username.isNotEmpty
-                                ? _caller!.username.substring(0, 1).toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                                fontSize: 48, color: Colors.white),
-                          )
-                        : null,
+                  UserAvatar(
+                    photoUrl: _caller?.photoUrl,
+                    username: _caller?.username ?? '?',
+                    size: 120,
                   ),
                 ],
               ),

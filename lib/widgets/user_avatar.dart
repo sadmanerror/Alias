@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 
-class UserAvatar extends StatelessWidget {
+class UserAvatar extends StatefulWidget {
   final String? photoUrl;
   final String username;
   final double size;
@@ -19,40 +19,64 @@ class UserAvatar extends StatelessWidget {
     this.isOnline = false,
   });
 
+  @override
+  State<UserAvatar> createState() => _UserAvatarState();
+}
+
+class _UserAvatarState extends State<UserAvatar> {
+  bool _hasError = false;
+
+  @override
+  void didUpdateWidget(covariant UserAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.photoUrl != widget.photoUrl) {
+      _hasError = false;
+    }
+  }
+
   ImageProvider? _getImageProvider() {
-    if (photoUrl == null || photoUrl!.isEmpty) return null;
-    if (photoUrl!.startsWith('data:image')) {
+    final photo = widget.photoUrl;
+    if (_hasError || photo == null || photo.trim().isEmpty) return null;
+    if (photo.startsWith('data:image')) {
       try {
-        final base64Str = photoUrl!.split(',').last;
+        final base64Str = photo.split(',').last;
         return MemoryImage(base64Decode(base64Str));
       } catch (_) {
         return null;
       }
     }
-    return CachedNetworkImageProvider(photoUrl!);
+    return CachedNetworkImageProvider(photo);
   }
 
   @override
   Widget build(BuildContext context) {
     final imageProvider = _getImageProvider();
     final Widget avatar = CircleAvatar(
-      radius: size / 2,
+      radius: widget.size / 2,
       backgroundColor: const Color(0xFF8DA399),
       backgroundImage: imageProvider,
-      onBackgroundImageError: imageProvider != null ? (_, __) {} : null,
+      onBackgroundImageError: imageProvider != null
+          ? (_, __) {
+              if (mounted && !_hasError) {
+                setState(() {
+                  _hasError = true;
+                });
+              }
+            }
+          : null,
       child: (imageProvider == null)
           ? Text(
-              username.isNotEmpty ? username[0].toUpperCase() : '?',
+              widget.username.isNotEmpty ? widget.username[0].toUpperCase() : '?',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: size * 0.4,
+                fontSize: widget.size * 0.4,
               ),
             )
           : null,
     );
 
-    if (showOnlineBadge) {
+    if (widget.showOnlineBadge) {
       return Stack(
         children: [
           avatar,
@@ -60,10 +84,10 @@ class UserAvatar extends StatelessWidget {
             right: 0,
             bottom: 0,
             child: Container(
-              width: size * 0.3,
-              height: size * 0.3,
+              width: widget.size * 0.3,
+              height: widget.size * 0.3,
               decoration: BoxDecoration(
-                color: isOnline ? const Color(0xFF4CAF50) : const Color(0xFF6B7C74),
+                color: widget.isOnline ? const Color(0xFF4CAF50) : const Color(0xFF6B7C74),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),

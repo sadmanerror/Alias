@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,9 +16,10 @@ import 'package:alias/providers/chat_provider.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Handle background message
-  debugPrint("Handling a background message: ${message.messageId}");
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (_) {}
+  await NotificationService.handleBackgroundMessage(message);
 }
 
 void main() async {
@@ -83,6 +85,29 @@ class _RootNotificationHandlerState
     extends ConsumerState<RootNotificationHandler> {
   final Map<String, DateTime> _lastNotifiedTime = {};
   final Map<String, String> _userNamesCache = {};
+  StreamSubscription<String>? _notificationSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Route clicks from notifications to the right screen
+    _notificationSub =
+        NotificationService.selectNotificationStream.stream.listen((route) {
+      if (mounted && route.isNotEmpty) {
+        try {
+          ref.read(goRouterProvider).push(route);
+        } catch (e) {
+          debugPrint('Error navigating from notification: $e');
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +125,22 @@ class _RootNotificationHandlerState
           callId: call.callId,
           isVideo: call.type == CallType.video,
         );
+
+        // WhatsApp-style: If the user is currently inside the app, immediately show full-screen incoming call UI
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          try {
+            final router = ref.read(goRouterProvider);
+            final currentLoc =
+                router.routerDelegate.currentConfiguration.uri.toString();
+            if (!currentLoc.contains('/incoming-call') &&
+                !currentLoc.contains('/active-call')) {
+              router.push('/incoming-call/${call.callId}');
+            }
+          } catch (e) {
+            debugPrint('Error pushing incoming call screen: $e');
+          }
+        });
       } else {
         NotificationService.instance.cancelCallNotification();
       }

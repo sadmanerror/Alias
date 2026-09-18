@@ -22,7 +22,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _messagePreviewEnabled = true;
   bool _autoAcceptCalls = false;
   String _lastBackupTime = 'Never';
-  String _appVersion = 'v1.2.0';
+  String _appVersion = 'v1.3.0';
 
   @override
   void initState() {
@@ -38,7 +38,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _appVersion = 'v${info.version}');
       }
     } catch (_) {
-      setState(() => _appVersion = 'v1.2.0');
+      setState(() => _appVersion = 'v1.3.0');
     }
   }
 
@@ -501,7 +501,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   title: const Text('Version'),
                   trailing: Text(
-                    _appVersion.isNotEmpty ? _appVersion : 'v1.2.0',
+                    _appVersion.isNotEmpty ? _appVersion : 'v1.3.0',
                     style: const TextStyle(color: Colors.grey),
                   ),
                 ),

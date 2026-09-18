@@ -3,14 +3,14 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android_%7C_iOS_%7C_Web-green.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/Flutter-3.x-blue.svg" alt="Flutter" />
-  <img src="https://img.shields.io/badge/Release-v1.2.0-sage.svg" alt="Release" />
+  <img src="https://img.shields.io/badge/Release-v1.3.0-sage.svg" alt="Release" />
   <img src="https://img.shields.io/badge/Android%20APK-~30MB-brightgreen.svg" alt="APK Size" />
   <img src="https://img.shields.io/badge/License-MIT-orange.svg" alt="License" />
 </p>
 
 <p align="center">
   <a href="https://github.com/sadmanerror/Alias/releases/latest/download/Alias-arm64-v8a.apk">
-    <img src="https://img.shields.io/badge/🤖_Download_Android_APK-v1.2.0-2ea44f?style=for-the-badge&logo=android&logoColor=white" height="42" alt="Download APK" />
+    <img src="https://img.shields.io/badge/🤖_Download_Android_APK-v1.3.0-2ea44f?style=for-the-badge&logo=android&logoColor=white" height="42" alt="Download APK" />
   </a>
   <a href="https://sadmanerror.github.io/Alias/">
     <img src="https://img.shields.io/badge/🍎_Open_on_iOS_&_Web-Live_App-000000?style=for-the-badge&logo=apple&logoColor=white" height="42" alt="iOS Web App" />
@@ -55,6 +55,29 @@ Because Apple restricts direct `.apk` installations, iOS users can install **Ali
 3. Scroll down and tap **"Add to Home Screen"** (`➕`).
 4. Tap **Add** in the top-right corner.
 5. **Alias** is now installed on your iPhone home screen just like a regular App Store app!
+
+---
+
+## ✨ What's New in v1.3.0
+
+### 🚀 Key Improvements & Fixes:
+- 🎵 **OG Nokia 3310 Classic Monophonic Ringtone**:
+  - Replaced the heavy 7.37MB ringtone with an authentic Nokia 3310 tune (`~396KB`), shaving substantial size off the app.
+  - Plays continuously on incoming calls and releases hardware audio resources immediately upon answering or declining.
+- 📞 **Agora Voice Transmission Resolved**:
+  - Configured Agora audio engine scenario to `AudioScenarioType.audioScenarioMeeting` with `AudioProfileType.audioProfileSpeechStandard`.
+  - Enables Android `MODE_IN_COMMUNICATION` with hardware acoustic echo cancellation and unmuted microphone pipeline.
+- 📲 **WhatsApp-Style Full-Screen Incoming Calls**:
+  - When the app is active, incoming calls immediately trigger the full-screen `IncomingCallScreen` with ringtone and caller info.
+  - Clicking incoming call notifications launches straight into the call screen.
+- 🔔 **Background & Killed App Notifications (Cloud Function Fix)**:
+  - Updated Cloud Functions Firestore trigger from `.onUpdate()` to `.onWrite()`, ensuring newly initiated calls (`onCreate`) immediately dispatch high-priority FCM call alerts to the callee.
+  - Updated Flutter `firebaseMessagingBackgroundHandler` to display incoming calls and chat notifications via `NotificationService` when the app is terminated or in background.
+- 🛡️ **Phone Call Permissions Sheet & Pre-flight Checks**:
+  - On launch, users are prompted with a stylish permission primer sheet explaining microphone and camera requirements for calls.
+  - Pre-flight checks prevent dead call states if microphone permission is denied.
+- 🖼️ **Left-Side Chat Head Avatar Fix**:
+  - Replaced broken image loading with a stateful fallback in `UserAvatar` and `ChatBubble` with Base64 memory decoding, fixing the blank sage-green circle bug.
 
 ---
 

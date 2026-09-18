@@ -42,9 +42,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _markAllChatsAsDelivered();
-      NotificationService.instance.promptPermissionIfNeeded(context);
+      await NotificationService.instance.promptPermissionIfNeeded(context);
+      if (mounted) {
+        await NotificationService.instance.promptCallPermissionsIfNeeded(context);
+      }
     });
   }
 

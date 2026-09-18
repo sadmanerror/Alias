@@ -67,8 +67,8 @@ class AgoraService {
       await _engine!.enableLocalAudio(true);
       await _engine!.setDefaultAudioRouteToSpeakerphone(true);
       await _engine!.setAudioProfile(
-        profile: AudioProfileType.audioProfileDefault,
-        scenario: AudioScenarioType.audioScenarioDefault,
+        profile: AudioProfileType.audioProfileSpeechStandard,
+        scenario: AudioScenarioType.audioScenarioMeeting,
       );
       _isInitialized = true;
     } catch (e) {
@@ -136,8 +136,12 @@ class AgoraService {
     }
 
     try {
+      await _engine!.enableAudio();
+      await _engine!.enableLocalAudio(true);
+      await _engine!.setDefaultAudioRouteToSpeakerphone(true);
       if (withVideo) {
         await _engine!.enableVideo();
+        await _engine!.startPreview();
       } else {
         await _engine!.disableVideo();
       }

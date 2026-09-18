@@ -10,6 +10,7 @@ import 'package:alias/providers/call_provider.dart';
 import 'package:alias/providers/auth_provider.dart';
 import 'package:alias/providers/chat_provider.dart';
 import 'package:alias/core/config/app_config.dart';
+import 'package:alias/widgets/user_avatar.dart';
 
 class ActiveCallScreen extends ConsumerStatefulWidget {
   final String callId;
@@ -52,7 +53,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
     _isRinging = true;
     try {
       await _ringtonePlayer.setReleaseMode(ReleaseMode.loop);
-      await _ringtonePlayer.play(AssetSource('audio/iphone_ringtone.mp3'));
+      await _ringtonePlayer.play(AssetSource('audio/nokia_3310_ringtone.mp3'));
     } catch (e) {
       debugPrint('Ringtone play error: $e');
     }
@@ -63,6 +64,7 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
     _isRinging = false;
     try {
       await _ringtonePlayer.stop();
+      await _ringtonePlayer.release();
     } catch (_) {}
   }
 
@@ -144,9 +146,11 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
 
       // Hook up Agora real-time events
       final agora = ref.read(agoraServiceProvider);
-      agora.onUserJoined = (uid) {
+      agora.onUserJoined = (uid) async {
         debugPrint('Agora remote user joined: $uid');
-        _stopRingtone();
+        await _stopRingtone();
+        await agora.toggleMute(false);
+        await agora.toggleSpeaker(true);
         if (mounted) {
           setState(() {
             _remoteUid = uid;
@@ -365,23 +369,10 @@ class _ActiveCallScreenState extends ConsumerState<ActiveCallScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircleAvatar(
-                  radius: 60,
-                  backgroundColor: const Color(0xFF8DA399),
-                  backgroundImage: (_remoteUser?.photoUrl != null &&
-                          _remoteUser!.photoUrl!.isNotEmpty)
-                      ? NetworkImage(_remoteUser!.photoUrl!)
-                      : null,
-                  child: (_remoteUser?.photoUrl == null ||
-                          _remoteUser!.photoUrl!.isEmpty)
-                      ? Text(
-                          _remoteUser != null &&
-                                  _remoteUser!.username.isNotEmpty
-                              ? _remoteUser!.username.substring(0, 1).toUpperCase()
-                              : '?',
-                          style: const TextStyle(fontSize: 48, color: Colors.white),
-                        )
-                      : null,
+                UserAvatar(
+                  photoUrl: _remoteUser?.photoUrl,
+                  username: _remoteUser?.username ?? '?',
+                  size: 120,
                 ),
                 const SizedBox(height: 16),
                 Text(

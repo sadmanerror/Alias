@@ -52,10 +52,13 @@ exports.onNewMessage = functions.firestore
           chatId: chatId,
           type: 'new_message',
           senderId: senderId,
+          senderName: senderUsername,
+          message: messagePreview,
         },
         android: {
+          priority: 'high',
           notification: {
-            channelId: 'messages',
+            channelId: 'alias_messages_channel',
             tag: chatId,
           },
         },
@@ -132,15 +135,16 @@ exports.generateAgoraToken = functions.https.onCall((data, context) => {
   return { token };
 });
 
-// 3. onCallStatusChange (Firestore trigger)
+// 3. onCallStatusChange (Firestore trigger) - triggers on both onCreate and onUpdate
 exports.onCallStatusChange = functions.firestore
   .document('calls/{callId}')
-  .onUpdate(async (change, context) => {
+  .onWrite(async (change, context) => {
+    if (!change.after.exists) return null;
     const newValue = change.after.data();
-    const previousValue = change.before.data();
+    const previousValue = change.before.exists ? change.before.data() : null;
     const callId = context.params.callId;
 
-    if (newValue.status === previousValue.status) return null;
+    if (previousValue && newValue.status === previousValue.status) return null;
 
     try {
       if (newValue.status === 'ringing') {
@@ -158,11 +162,21 @@ exports.onCallStatusChange = functions.firestore
           data: {
             type: 'call_invite',
             callId: callId,
-            callerId: newValue.callerId,
-            callerName: callerName,
-            channelName: newValue.channelName,
-            callType: newValue.type || 'video',
-            token: newValue.token || ''
+            callerId: String(newValue.callerId || ''),
+            callerName: String(callerName),
+            channelName: String(newValue.channelName || ''),
+            callType: String(newValue.type || 'audio'),
+            token: String(newValue.token || '')
+          },
+          android: {
+            priority: 'high',
+            notification: {
+              channelId: 'alias_calls_channel',
+              title: `Incoming ${newValue.type === 'video' ? 'Video' : 'Audio'} Call`,
+              body: `${callerName} is calling you...`,
+              priority: 'max',
+              visibility: 'public',
+            }
           }
         };
 

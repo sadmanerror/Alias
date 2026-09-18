@@ -8,6 +8,7 @@ import 'package:alias/models/user_model.dart';
 import 'package:alias/providers/call_provider.dart';
 import 'package:alias/providers/auth_provider.dart';
 import 'package:alias/services/notification_service.dart';
+import 'package:alias/widgets/user_avatar.dart';
 
 // ── Group Call Screen ─────────────────────────────────────────────────────────
 class GroupCallScreen extends ConsumerStatefulWidget {
@@ -136,7 +137,7 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
     _isRinging = true;
     try {
       await _ringtonePlayer.setReleaseMode(ReleaseMode.loop);
-      await _ringtonePlayer.play(AssetSource('audio/iphone_ringtone.mp3'));
+      await _ringtonePlayer.play(AssetSource('audio/nokia_3310_ringtone.mp3'));
     } catch (e) {
       debugPrint('Group ringtone error: $e');
     }
@@ -147,6 +148,7 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
     _isRinging = false;
     try {
       await _ringtonePlayer.stop();
+      await _ringtonePlayer.release();
     } catch (_) {}
   }
 
@@ -308,18 +310,10 @@ class _GroupCallScreenState extends ConsumerState<GroupCallScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 32,
-            backgroundColor: _sage,
-            backgroundImage: (user.photoUrl != null && user.photoUrl!.isNotEmpty)
-                ? NetworkImage(user.photoUrl!)
-                : null,
-            child: (user.photoUrl == null || user.photoUrl!.isEmpty)
-                ? Text(
-                    user.username.isNotEmpty ? user.username[0].toUpperCase() : '?',
-                    style: const TextStyle(fontSize: 24, color: Colors.white),
-                  )
-                : null,
+          UserAvatar(
+            photoUrl: user.photoUrl,
+            username: user.username,
+            size: 64,
           ),
           const SizedBox(height: 8),
           Text(

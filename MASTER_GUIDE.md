@@ -323,7 +323,7 @@ Implemented in `GiphyService` and `GifPickerScreen`:
 
 ---
 
-## 6. CI/CD & Cloud Automation (GitHub Actions v1.2.0)
+## 6. CI/CD & Cloud Automation (GitHub Actions v1.3.0)
 
 The workflow file [`.github/workflows/build_apk.yml`](file:///D:/alias/.github/workflows/build_apk.yml) automates the entire release cycle:
 
@@ -331,17 +331,53 @@ The workflow file [`.github/workflows/build_apk.yml`](file:///D:/alias/.github/w
 graph TD
     A[Push commit to main] --> B[GitHub Actions Runner Ubuntu]
     B --> C[Setup Java 17 & Flutter SDK]
+    B --> C2[Validate Android Gradle build]
     C --> D[Generate local.properties & Gradle Flags]
     D --> E[flutter pub get]
     E --> F[flutter build apk --release --split-per-abi]
     E --> G[flutter build web --release]
-    F --> H[Publish GitHub Release v1.1.0 with Alias APKs < 30MB]
+    F --> H[Publish GitHub Release v1.3.0 with Alias APKs < 30MB]
     G --> I[Deploy to GitHub Pages for iOS Web App]
 ```
 
 ---
 
-## 7. Step-by-Step: How to Build This Kind of App From Scratch
+## 7. Version 1.3.0 Engineering Deep-Dive: Voice RTC & Call Lifecycle
+
+### 7.1 Agora RTC Voice Transmission & Audio Routing
+- **The Problem**: Callers and callees joined channels, but neither could hear the other on mobile devices.
+- **The Solution**:
+  1. **Audio Profile & Scenario**:
+     ```dart
+     await _engine!.setAudioProfile(
+       profile: AudioProfileType.audioProfileSpeechStandard,
+       scenario: AudioScenarioType.audioScenarioMeeting,
+     );
+     ```
+     `audioScenarioMeeting` engages Android's hardware `MODE_IN_COMMUNICATION` with hardware acoustic echo cancellation (AEC) and automatic gain control (AGC).
+  2. **Speakerphone & Track Configuration**:
+     Both `enableAudio()`, `enableLocalAudio(true)`, and `setDefaultAudioRouteToSpeakerphone(true)` are invoked before `joinChannel`. In `onUserJoined`, local mic tracks are unmuted (`toggleMute(false)`) and speaker is routed (`toggleSpeaker(true)`).
+  3. **Hardware Contention Release**:
+     Playing looped ringtones with `AudioPlayer` holds an exclusive lock on Android's `AudioTrack`. Upon answering, `_audioPlayer.release()` must be called so Agora RTC can bind to the device's audio recording and playback pipelines.
+
+### 7.2 Background FCM & WhatsApp-Style Incoming Call Full-Screen Event
+- **The Problem**: When the app was closed or in background, incoming calls never alerted the user. When open, incoming calls only displayed a status bar notification.
+- **The Solution**:
+  1. **Firestore Trigger Fix (`functions/index.js`)**:
+     Changed `exports.onCallStatusChange` from `.onUpdate(...)` to `.onWrite(...)`. When a call is newly initiated, it is an `onCreate` event; `.onUpdate` never fired, starving the callee of the FCM call invite.
+  2. **Full-Screen WhatsApp-Style Routing (`main.dart`)**:
+     `RootNotificationHandler` detects ringing calls in the foreground and pushes `/incoming-call/:callId` directly onto the router stack.
+  3. **Background FCM Message Handler (`main.dart`)**:
+     `firebaseMessagingBackgroundHandler` calls `NotificationService.handleBackgroundMessage(message)`, invoking `showCallNotification` with `fullScreenIntent: true` and category `call`.
+
+### 7.3 Authentic Nokia 3310 Ringtone Synthesis
+- **The Problem**: iPhone ringtone asset was 7.37MB, pushing APK download size higher.
+- **The Solution**:
+  Replaced with an authentic Nokia 3310 monophonic tune (`assets/audio/nokia_3310_ringtone.mp3`, 396KB) generated using square-wave harmonic synthesis of the classic Grand Valse melody, keeping split APKs under 30MB.
+
+---
+
+## 8. Step-by-Step: How to Build This Kind of App From Scratch
 
 If you want to build another app like this in the future, follow this proven roadmap:
 

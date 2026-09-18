@@ -8,11 +8,13 @@ import 'package:alias/models/message_model.dart';
 import 'package:alias/providers/chat_provider.dart';
 import 'audio_player_bubble.dart';
 import 'gif_bubble.dart';
+import 'user_avatar.dart';
 
 class ChatBubble extends ConsumerStatefulWidget {
   final MessageModel message;
   final bool isSender;
   final String? partnerPhotoUrl;
+  final String? partnerUsername;
   final String chatId;
 
   const ChatBubble({
@@ -21,6 +23,7 @@ class ChatBubble extends ConsumerStatefulWidget {
     required this.isSender,
     required this.chatId,
     this.partnerPhotoUrl,
+    this.partnerUsername,
   });
 
   @override
@@ -45,6 +48,17 @@ class _ChatBubbleState extends ConsumerState<ChatBubble> {
     final message = widget.message;
     final isSender = widget.isSender;
 
+    // Resolve sender profile for groups or when partner data is still loading
+    final senderProfile = !isSender
+        ? ref.watch(userProfileProvider(message.senderId)).value
+        : null;
+    final effectivePhotoUrl = (widget.partnerPhotoUrl != null && widget.partnerPhotoUrl!.isNotEmpty)
+        ? widget.partnerPhotoUrl
+        : senderProfile?.photoUrl;
+    final effectiveUsername = (widget.partnerUsername != null && widget.partnerUsername!.isNotEmpty)
+        ? widget.partnerUsername!
+        : (senderProfile?.username ?? '');
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: Column(
@@ -55,15 +69,11 @@ class _ChatBubbleState extends ConsumerState<ChatBubble> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               if (!isSender) ...[
-                CircleAvatar(
-                  radius: 14,
-                  backgroundColor: const Color(0xFF8DA399),
-                  backgroundImage: widget.partnerPhotoUrl != null
-                      ? CachedNetworkImageProvider(widget.partnerPhotoUrl!)
-                      : null,
-                  child: widget.partnerPhotoUrl == null
-                      ? const Icon(Icons.person, size: 16, color: Colors.white)
-                      : null,
+                UserAvatar(
+                  photoUrl: effectivePhotoUrl,
+                  username: effectiveUsername,
+                  size: 28,
+                  showOnlineBadge: false,
                 ),
                 const SizedBox(width: 8),
               ],

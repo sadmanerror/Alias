@@ -20,6 +20,7 @@ import 'package:alias/services/giphy_service.dart';
 import 'package:alias/services/notification_service.dart';
 import 'package:alias/widgets/user_avatar.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String chatId;
@@ -423,6 +424,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 icon: const Icon(Icons.videocam, color: primarySageGreen),
                 onPressed: () async {
                   if (partner != null) {
+                    final mic = await Permission.microphone.request();
+                    final cam = await Permission.camera.request();
+                    if (!mic.isGranted || !cam.isGranted) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Microphone and camera permissions are required for video calls'),
+                          ),
+                        );
+                      }
+                      return;
+                    }
                     final callId = await ref
                         .read(callNotifierProvider.notifier)
                         .initiateCall(
@@ -440,6 +453,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 icon: const Icon(Icons.call, color: primarySageGreen),
                 onPressed: () async {
                   if (partner != null) {
+                    final mic = await Permission.microphone.request();
+                    if (!mic.isGranted) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Microphone permission is required for voice calls'),
+                          ),
+                        );
+                      }
+                      return;
+                    }
                     final callId = await ref
                         .read(callNotifierProvider.notifier)
                         .initiateCall(
@@ -487,6 +511,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         message: message,
                         isSender: message.senderId == currentUserId,
                         partnerPhotoUrl: partner?.photoUrl,
+                        partnerUsername: partner?.username,
                         chatId: widget.chatId,
                       );
                     },
